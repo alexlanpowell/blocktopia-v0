@@ -32,8 +32,9 @@ This configuration has been **aligned with your proven working Unmap app** to en
 ### Core Framework (MATCHES UNMAP)
 ```json
 {
-  "expo": "~54.0.25",
+  "expo": "~54.0.22",
   "react": "19.1.0",
+  "react-dom": "19.1.0",
   "react-native": "0.81.5"
 }
 ```
@@ -43,8 +44,11 @@ This configuration has been **aligned with your proven working Unmap app** to en
 {
   "expo-router": "~6.0.13",
   "expo-dev-client": "~6.0.17",
+  "expo-linking": "~8.0.8",
   "react-native-reanimated": "~4.1.1",
-  "react-native-gesture-handler": "^2.29.1"
+  "react-native-gesture-handler": "^2.29.1",
+  "react-native-screens": "~4.16.0",
+  "react-native-worklets": "0.5.1"
 }
 ```
 
@@ -168,6 +172,101 @@ Based on your Unmap app learnings:
 
 ---
 
+## 📚 Lessons Learned from Build Process
+
+### ⚠️ Critical Issues Encountered
+
+During the build process, we encountered **6 failed builds** before achieving success. Here are the key issues:
+
+#### 1. Missing Peer Dependencies
+**Initial Issue:** Package.json was missing required peer dependencies.
+- ❌ Missing: `react-dom@19.1.0`
+- ❌ Missing: `expo-linking@~8.0.8`
+- ❌ Missing: `react-native-screens@~4.16.0`
+
+**Lesson:** expo-router requires these packages explicitly listed in dependencies.
+
+#### 2. react-native-worklets Not Explicit (THE KEY FIX!)
+**The Breaking Issue:** Without explicit version in package.json, npm ci tried to resolve wrong version.
+- ❌ npm tried to install `react-native-worklets@0.6.1` (wrong)
+- ✅ Needed explicit `"react-native-worklets": "0.5.1"` (correct)
+
+**Why This Mattered:**
+- `npm install --legacy-peer-deps` worked (ignores peer deps)
+- `npm ci --include=dev` failed (strict mode - what EAS uses!)
+- This was the **breakthrough fix** that made builds succeed
+
+#### 3. Testing with Wrong npm Command
+**Critical Mistake:** Testing locally with different command than EAS uses.
+- ❌ We tested: `npm ci --legacy-peer-deps`
+- ✅ EAS uses: `npm ci --include=dev`
+
+**Impact:** Local tests passed but EAS failed!
+
+**Solution:** Always test with `npm ci --include=dev` before building.
+
+#### 4. Expo Version Mismatch
+**Issue:** Used `expo: "~54.0.25"` instead of `"~54.0.22"`.
+
+**Lesson:** Match EXACT versions from working config, even minor versions matter.
+
+#### 5. Forgot to Commit to Git
+**Issue:** Made changes but didn't commit before running EAS build.
+
+**Impact:** EAS builds from **committed** state, not working directory!
+
+**Solution:** Always check `git status` and commit before `eas build`.
+
+#### 6. package-lock.json Out of Sync
+**Issue:** Lock file didn't match package.json.
+
+**Solution:**
+```bash
+Remove-Item package-lock.json -Force
+npm install --legacy-peer-deps
+```
+
+### ✅ The Working Build Workflow
+
+**What Finally Worked:**
+```bash
+# 1. Update package.json with ALL dependencies
+# 2. Clean everything
+Remove-Item -Recurse -Force node_modules
+Remove-Item package-lock.json -Force
+
+# 3. Install
+npm install --legacy-peer-deps
+
+# 4. TEST with exact EAS command (CRITICAL!)
+Remove-Item -Recurse -Force node_modules
+npm ci --include=dev
+
+# 5. If test passes, verify TypeScript
+npx tsc --noEmit
+
+# 6. Commit everything
+git add package.json package-lock.json
+git commit -m "Fix dependencies"
+
+# 7. Build
+eas build --platform ios --profile development
+```
+
+### 🎯 Key Takeaways
+
+1. **Test with exact EAS command** - `npm ci --include=dev` not `--legacy-peer-deps`
+2. **Always commit before building** - EAS doesn't see uncommitted changes
+3. **Explicit peer dependencies** - Don't assume transitive deps work
+4. **Match versions exactly** - Use same versions as working config
+5. **react-native-worklets must be explicit** - This was the final fix!
+
+### 📖 Full Documentation
+
+For complete troubleshooting guide, see: **`BLOCKTOPIA_EAS_BUILD_GUIDE.md`**
+
+---
+
 ## 🎉 Ready for EAS Build
 
 Your Blocktopia app now has the **exact same proven configuration** as your working Unmap app. 
@@ -185,6 +284,9 @@ Expected result: **✅ SUCCESS** (same as Unmap)
 **Configuration Last Updated:** November 19, 2025  
 **Aligned With:** Unmap App Working Configuration (November 16, 2025)  
 **Verification Status:** ✅ TypeScript compiles, dependencies installed  
-**Build Status:** 🟢 READY TO BUILD
+**Build Status:** ✅ SUCCESSFULLY BUILT (commit 0cff86e)  
+**Failed Builds:** 6  
+**Successful Builds:** 1  
+**Key Fix:** Added explicit `react-native-worklets@0.5.1` + tested with `npm ci --include=dev`
 
 
