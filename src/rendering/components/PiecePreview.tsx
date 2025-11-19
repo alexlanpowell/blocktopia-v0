@@ -5,10 +5,12 @@
 
 import React, { useMemo, memo } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import { Canvas, RoundedRect, Group } from '@shopify/react-native-skia';
+import { Canvas, RoundedRect, Group, LinearGradient as SkiaLinearGradient, vec } from '@shopify/react-native-skia';
+import { BlurView } from 'expo-blur';
 import { useCurrentPieces, useGameStore } from '../../store/gameStore';
 import { Piece } from '../../utils/types';
 import { GAME_CONFIG } from '../../game/constants';
+import { COLORS, SHADOWS, BORDER_RADIUS } from '../../utils/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PIECE_PREVIEW_HEIGHT = 150;
@@ -39,22 +41,31 @@ const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canB
     const offsetX = (PIECE_CONTAINER_WIDTH - pieceWidth) / 2;
     const offsetY = (PIECE_PREVIEW_HEIGHT - pieceHeight) / 2;
 
-    // Render each cell of the piece
+    // Get gradient colors for this piece
+    const gradientColors = COLORS.pieces[piece.id % COLORS.pieces.length];
+
+    // Render each cell of the piece with gradient
     for (const cell of piece.structure) {
       const cellX = offsetX + (cell.x - minX) * (CELL_SIZE + CELL_GAP);
       const cellY = offsetY + (cell.y - minY) * (CELL_SIZE + CELL_GAP);
 
       cells.push(
-        <RoundedRect
-          key={`piece-${index}-cell-${cell.x}-${cell.y}`}
-          x={cellX}
-          y={cellY}
-          width={CELL_SIZE}
-          height={CELL_SIZE}
-          r={4}
-          color={piece.color}
-          opacity={canBePlaced ? 1 : 0.4}
-        />
+        <Group key={`piece-${index}-cell-${cell.x}-${cell.y}`}>
+          <RoundedRect
+            x={cellX}
+            y={cellY}
+            width={CELL_SIZE}
+            height={CELL_SIZE}
+            r={6}
+            opacity={canBePlaced ? 1 : 0.4}
+          >
+            <SkiaLinearGradient
+              start={vec(0, 0)}
+              end={vec(CELL_SIZE, CELL_SIZE)}
+              colors={[gradientColors.start, gradientColors.end]}
+            />
+          </RoundedRect>
+        </Group>
       );
     }
 
@@ -75,35 +86,41 @@ export const PiecePreview = memo(function PiecePreview() {
   const canPieceBePlaced = useGameStore(state => state.canPieceBePlaced);
 
   return (
-    <View style={styles.container}>
-      {currentPieces.map((piece, index) => {
-        const canPlace = canPieceBePlaced(index);
-        return (
-          <SinglePiecePreview
-            key={`piece-preview-${index}-${piece.id}`}
-            piece={piece}
-            index={index}
-            canBePlaced={canPlace}
-          />
-        );
-      })}
-    </View>
+    <BlurView intensity={20} tint="dark" style={styles.container}>
+      <View style={styles.innerContainer}>
+        {currentPieces.map((piece, index) => {
+          const canPlace = canPieceBePlaced(index);
+          return (
+            <SinglePiecePreview
+              key={`piece-preview-${index}-${piece.id}`}
+              piece={piece}
+              index={index}
+              canBePlaced={canPlace}
+            />
+          );
+        })}
+      </View>
+    </BlurView>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     width: SCREEN_WIDTH,
     height: PIECE_PREVIEW_HEIGHT,
-    backgroundColor: '#16213e',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+    backgroundColor: COLORS.ui.cardBackground,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: COLORS.ui.cardBorder,
+    overflow: 'hidden',
+    ...SHADOWS.large,
+  },
+  innerContainer: {
+    flexDirection: 'row',
+    flex: 1,
   },
   pieceContainer: {
     width: PIECE_CONTAINER_WIDTH,

@@ -266,5 +266,52 @@ export class Board {
       this.grid[y][x] = value;
     }
   }
+
+  /**
+   * Check if a row or column has any filled cells
+   * Used for continue feature to find clearable lines
+   */
+  hasFilledCells(index: number, isRow: boolean): boolean {
+    if (isRow) {
+      // Check row
+      if (index < 0 || index >= this.size) return false;
+      for (let x = 0; x < this.size; x++) {
+        if (this.grid[index][x] !== null) {
+          return true;
+        }
+      }
+    } else {
+      // Check column
+      if (index < 0 || index >= this.size) return false;
+      for (let y = 0; y < this.size; y++) {
+        if (this.grid[y][index] !== null) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Clear a specific row
+   * Used for continue feature
+   */
+  clearRow(rowIndex: number): void {
+    if (rowIndex < 0 || rowIndex >= this.size) return;
+    for (let x = 0; x < this.size; x++) {
+      this.grid[rowIndex][x] = null;
+    }
+  }
+
+  /**
+   * Clear a specific column
+   * Used for continue feature
+   */
+  clearColumn(colIndex: number): void {
+    if (colIndex < 0 || colIndex >= this.size) return;
+    for (let y = 0; y < this.size; y++) {
+      this.grid[y][colIndex] = null;
+    }
+  }
 }
 

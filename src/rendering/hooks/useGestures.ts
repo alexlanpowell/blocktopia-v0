@@ -5,6 +5,8 @@
 
 import { Gesture } from 'react-native-gesture-handler';
 import { Dimensions } from 'react-native';
+import { runOnJS } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useGameStore } from '../../store/gameStore';
 import { BOARD_DIMENSIONS } from '../components/GameBoard';
 import { GAME_CONFIG } from '../../game/constants';
@@ -62,8 +64,46 @@ interface UseGesturesConfig {
 export function useGestures(config: UseGesturesConfig) {
   const { boardOffsetX, boardOffsetY, piecePreviewY, onPiecePlaced } = config;
 
+  // Wrap store actions to run on JS thread
+  const handleStartDrag = (pieceIndex: number, touchX: number, touchY: number) => {
+    'worklet';
+    const store = useGameStore.getState();
+    // Check if piece can be placed anywhere
+    const canPlace = store.canPieceBePlaced(pieceIndex);
+    if (canPlace) {
+      // Light haptic feedback on pickup
+      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+      runOnJS(store.startDrag)(pieceIndex, { x: touchX, y: touchY });
+    }
+  };
+
+  const handleUpdateDrag = (x: number, y: number, boardPos: { x: number; y: number } | null) => {
+    'worklet';
+    const store = useGameStore.getState();
+    runOnJS(store.updateDrag)({ x, y }, boardPos);
+  };
+
+  const handleEndDrag = (successCallback?: () => void) => {
+    'worklet';
+    const store = useGameStore.getState();
+    const endDragOnJS = () => {
+      const success = store.endDrag();
+      if (success && successCallback) {
+        successCallback();
+      }
+    };
+    runOnJS(endDragOnJS)();
+  };
+
+  const handleCancelDrag = () => {
+    'worklet';
+    const store = useGameStore.getState();
+    runOnJS(store.cancelDrag)();
+  };
+
   const panGesture = Gesture.Pan()
     .onStart(event => {
+      'worklet';
       const { y: touchY, x: touchX } = event;
 
       // Check if touch started on piece preview area
@@ -72,53 +112,47 @@ export function useGestures(config: UseGesturesConfig) {
         const pieceIndex = Math.floor((touchX / SCREEN_WIDTH) * GAME_CONFIG.PIECE_COUNT);
 
         if (pieceIndex >= 0 && pieceIndex < GAME_CONFIG.PIECE_COUNT) {
-          const store = useGameStore.getState();
-          // Check if piece can be placed anywhere
-          if (store.canPieceBePlaced(pieceIndex)) {
-            store.startDrag(pieceIndex, { x: touchX, y: touchY });
-          }
+          handleStartDrag(pieceIndex, touchX, touchY);
         }
       }
     })
     .onUpdate(event => {
+      'worklet';
       const store = useGameStore.getState();
       const dragState = store.dragState;
 
-      if (!dragState.isDragging) {
+      if (!dragState || !dragState.isDragging) {
         return;
       }
-
-      // Update drag position
-      const screenPosition = { x: event.x, y: event.y };
 
       // Convert to board coordinates
       const boardPosition = screenToBoardCoordinates(event.x, event.y, boardOffsetX, boardOffsetY);
 
-      store.updateDrag(screenPosition, boardPosition);
+      handleUpdateDrag(event.x, event.y, boardPosition);
     })
-    .onEnd(event => {
+    .onEnd(() => {
+      'worklet';
       const store = useGameStore.getState();
       const dragState = store.dragState;
 
-      if (!dragState.isDragging) {
+      if (!dragState || !dragState.isDragging) {
         return;
       }
 
       // Try to place the piece
-      const success = store.endDrag();
-
-      if (success && onPiecePlaced) {
-        onPiecePlaced();
-      }
+      handleEndDrag(onPiecePlaced);
     })
     .onFinalize(() => {
+      'worklet';
       // Cancel drag if gesture was cancelled
       const store = useGameStore.getState();
       const dragState = store.dragState;
-      if (dragState.isDragging) {
-        store.cancelDrag();
+      if (dragState && dragState.isDragging) {
+        handleCancelDrag();
       }
-    });
+    })
+    .shouldCancelWhenOutside(false)
+    .simultaneousWithExternalGesture();
 
   return { panGesture };
 }

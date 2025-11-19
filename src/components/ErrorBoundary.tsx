@@ -1,19 +1,23 @@
 /**
- * Error Boundary Component for catching React errors
- * Follows React best practices for production error handling
+ * Error Boundary Component - Phase 8
+ * Catches React component errors and provides fallback UI
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { errorTracker, ErrorSeverity } from '../utils/ErrorTracker';
+import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../utils/theme';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: React.ErrorInfo | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -22,6 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.state = {
       hasError: false,
       error: null,
+      errorInfo: null,
     };
   }
 
@@ -29,41 +34,72 @@ export class ErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       error,
+      errorInfo: null,
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Log error to error reporting service in production
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    // TODO: Send to error tracking service (Sentry, Bugsnag, etc) in Phase 3
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    // Log error to tracking service
+    errorTracker.trackError(
+      error,
+      ErrorSeverity.HIGH,
+      'React Error Boundary',
+      {
+        component_stack: errorInfo.componentStack,
+      }
+    );
+
+    // Update state
+    this.setState({
+      error,
+      errorInfo,
+    });
+
+    // Call custom error handler if provided
+    this.props.onError?.(error, errorInfo);
   }
 
   handleReset = (): void => {
     this.setState({
       hasError: false,
       error: null,
+      errorInfo: null,
     });
   };
 
   render(): ReactNode {
     if (this.state.hasError) {
+      // Custom fallback if provided
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
+      // Default error UI
       return (
         <View style={styles.container}>
-          <View style={styles.card}>
+          <View style={styles.content}>
+            <Text style={styles.emoji}>😵</Text>
             <Text style={styles.title}>Oops! Something went wrong</Text>
             <Text style={styles.message}>
-              We're sorry for the inconvenience. The app encountered an unexpected error.
+              We're sorry for the inconvenience. The error has been logged and we'll fix it soon.
             </Text>
+
+            {__DEV__ && this.state.error && (
+              <View style={styles.errorDetails}>
+                <Text style={styles.errorTitle}>Error Details:</Text>
+                <Text style={styles.errorText}>{this.state.error.toString()}</Text>
+                {this.state.errorInfo?.componentStack && (
+                  <Text style={styles.errorText}>
+                    {this.state.errorInfo.componentStack}
+                  </Text>
+                )}
+              </View>
+            )}
+
             <TouchableOpacity
               style={styles.button}
               onPress={this.handleReset}
               activeOpacity={0.8}
-              accessibilityLabel="Try again"
-              accessibilityRole="button"
             >
               <Text style={styles.buttonText}>Try Again</Text>
             </TouchableOpacity>
@@ -79,54 +115,64 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f1419',
+    backgroundColor: COLORS.background.dark1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.xl,
   },
-  card: {
-    backgroundColor: '#2a2a3e',
-    borderRadius: 20,
-    padding: 30,
+  content: {
     alignItems: 'center',
     maxWidth: 400,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  },
+  emoji: {
+    fontSize: 64,
+    marginBottom: SPACING.lg,
   },
   title: {
+    ...TYPOGRAPHY.title,
     fontSize: 24,
-    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
-    color: '#FF6B6B',
-    marginBottom: 16,
+    marginBottom: SPACING.md,
     textAlign: 'center',
   },
   message: {
+    ...TYPOGRAPHY.body,
     fontSize: 16,
-    color: '#888',
-    marginBottom: 24,
     textAlign: 'center',
-    lineHeight: 24,
+    color: COLORS.ui.textSecondary,
+    marginBottom: SPACING.xl,
+  },
+  errorDetails: {
+    backgroundColor: COLORS.ui.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.accent.error,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    maxHeight: 200,
+    width: '100%',
+  },
+  errorTitle: {
+    fontSize: 14,
+    fontWeight: Platform.OS === 'ios' ? '600' : 'bold',
+    color: COLORS.accent.error,
+    marginBottom: SPACING.sm,
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: COLORS.ui.textSecondary,
   },
   button: {
-    backgroundColor: '#4ECDC4',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: Platform.OS === 'ios' ? 25 : 20,
-    shadowColor: '#4ECDC4',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
+    backgroundColor: COLORS.primary.cyan,
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    minWidth: 200,
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: Platform.OS === 'ios' ? '600' : 'bold',
-    color: '#ffffff',
-    letterSpacing: Platform.OS === 'android' ? 0.5 : 0,
+    fontSize: 18,
+    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
+    color: COLORS.ui.text,
+    textAlign: 'center',
   },
 });
-

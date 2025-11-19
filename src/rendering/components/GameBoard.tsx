@@ -4,11 +4,11 @@
  */
 
 import React, { useMemo, memo } from 'react';
-import { Canvas, RoundedRect, Group } from '@shopify/react-native-skia';
+import { Canvas, RoundedRect, Group, LinearGradient as SkiaLinearGradient, vec } from '@shopify/react-native-skia';
 import { StyleSheet, Dimensions } from 'react-native';
 import { useBoard, useDragState } from '../../store/gameStore';
 import { GAME_CONFIG } from '../../game/constants';
-import { PIECE_COLORS } from '../../utils/types';
+import { COLORS, BORDER_RADIUS } from '../../utils/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BOARD_PADDING = 20;
@@ -33,17 +33,18 @@ export const GameBoard = memo(function GameBoard() {
         const cellValue = grid[y][x];
         const isEmpty = cellValue === null;
 
-        // Determine cell color
-        let cellColor = '#2a2a3e'; // Empty cell background
+        // Determine cell color/gradient
+        const emptyColor = COLORS.ui.boardCell;
+        let gradientColors = null;
         let cellOpacity = 1;
 
         if (!isEmpty && cellValue !== null) {
-          // Cell is filled - use piece color
-          cellColor = PIECE_COLORS[cellValue % PIECE_COLORS.length];
+          // Cell is filled - use gradient from theme
+          gradientColors = COLORS.pieces[cellValue % COLORS.pieces.length];
         }
 
         // Check if this cell should be highlighted (drag preview)
-        let isHighlighted = false;
+        let highlightColor = null;
         if (
           dragState.isDragging &&
           dragState.targetPosition &&
@@ -59,27 +60,63 @@ export const GameBoard = memo(function GameBoard() {
             const previewY = targetY + cell.y;
 
             if (previewX === x && previewY === y) {
-              isHighlighted = true;
               // Show green highlight if can place, red if cannot
-              cellColor = dragState.canPlace ? '#4ECDC4' : '#FF6B6B';
+              highlightColor = dragState.canPlace ? COLORS.accent.success : COLORS.accent.error;
               cellOpacity = 0.6;
               break;
             }
           }
         }
 
-        cells.push(
-          <RoundedRect
-            key={`cell-${x}-${y}`}
-            x={cellX}
-            y={cellY}
-            width={CELL_SIZE}
-            height={CELL_SIZE}
-            r={4}
-            color={cellColor}
-            opacity={cellOpacity}
-          />
-        );
+        // Render cell with gradient or solid color
+        if (highlightColor) {
+          // Highlight cell
+          cells.push(
+            <RoundedRect
+              key={`cell-${x}-${y}`}
+              x={cellX}
+              y={cellY}
+              width={CELL_SIZE}
+              height={CELL_SIZE}
+              r={6}
+              color={highlightColor}
+              opacity={cellOpacity}
+            />
+          );
+        } else if (gradientColors) {
+          // Filled cell with gradient
+          cells.push(
+            <RoundedRect
+              key={`cell-${x}-${y}`}
+              x={cellX}
+              y={cellY}
+              width={CELL_SIZE}
+              height={CELL_SIZE}
+              r={6}
+              opacity={cellOpacity}
+            >
+              <SkiaLinearGradient
+                start={vec(0, 0)}
+                end={vec(CELL_SIZE, CELL_SIZE)}
+                colors={[gradientColors.start, gradientColors.end]}
+              />
+            </RoundedRect>
+          );
+        } else {
+          // Empty cell
+          cells.push(
+            <RoundedRect
+              key={`cell-${x}-${y}`}
+              x={cellX}
+              y={cellY}
+              width={CELL_SIZE}
+              height={CELL_SIZE}
+              r={6}
+              color={emptyColor}
+              opacity={0.3}
+            />
+          );
+        }
       }
     }
 
@@ -89,15 +126,21 @@ export const GameBoard = memo(function GameBoard() {
   return (
     <Canvas style={styles.canvas}>
       <Group>
-        {/* Background */}
+        {/* Background with gradient */}
         <RoundedRect
           x={0}
           y={0}
           width={BOARD_WIDTH}
           height={BOARD_HEIGHT}
-          r={12}
-          color="#1a1a2e"
-        />
+          r={BORDER_RADIUS.lg}
+          opacity={0.8}
+        >
+          <SkiaLinearGradient
+            start={vec(0, 0)}
+            end={vec(BOARD_WIDTH, BOARD_HEIGHT)}
+            colors={[COLORS.ui.boardBackground, COLORS.background.dark2]}
+          />
+        </RoundedRect>
 
         {/* Board cells */}
         {boardCells}

@@ -143,20 +143,51 @@ export class GameState {
   }
 
   /**
-   * Continue after game over (for rewarded ad feature - Phase 3)
+   * Continue after game over (after watching rewarded ad)
+   * Clears 3-5 random rows/columns to give player another chance
    */
   continue(): void {
     if (!this.canContinue) {
+      console.warn('Cannot continue - already used');
       return;
     }
 
-    // TODO: Implement continue logic in Phase 3
-    // For now, just allow one continue
+    console.log('Continuing game after rewarded ad...');
+
+    // Mark continue as used
     this.canContinue = false;
     this.isGameOver = false;
 
-    // Clear 3 random rows or columns to give player a chance
-    // This will be implemented in Phase 3
+    // Clear 3-5 random rows or columns to give player space
+    const linesToClear = 3 + Math.floor(Math.random() * 3); // 3-5 lines
+    let linesCleared = 0;
+
+    // Try to clear random rows and columns
+    for (let i = 0; i < linesToClear && linesCleared < linesToClear; i++) {
+      const clearRow = Math.random() > 0.5;
+      
+      if (clearRow) {
+        // Clear a random row
+        const rowIndex = Math.floor(Math.random() * GAME_CONFIG.BOARD_SIZE);
+        if (this.board.hasFilledCells(rowIndex, true)) {
+          this.board.clearRow(rowIndex);
+          linesCleared++;
+        }
+      } else {
+        // Clear a random column
+        const colIndex = Math.floor(Math.random() * GAME_CONFIG.BOARD_SIZE);
+        if (this.board.hasFilledCells(colIndex, false)) {
+          this.board.clearColumn(colIndex);
+          linesCleared++;
+        }
+      }
+    }
+
+    console.log(`Cleared ${linesCleared} lines for continue`);
+    
+    // Don't award points for continue clears
+    // Check if game is still playable
+    this.checkGameOver();
   }
 
   /**
