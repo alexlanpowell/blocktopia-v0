@@ -1,0 +1,34 @@
+{
+  "name": "blocktopia",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "dev:client": "expo start --dev-client",
+    "dev:client:tunnel": "expo start --dev-client --tunnel"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@shopify/react-native-skia": "^2.3.13",
+    "expo": "~54.0.25",
+    "expo-build-properties": "^1.0.9",
+    "expo-dev-client": "~6.0.17",
+    "expo-router": "~6.0.13",
+    "expo-status-bar": "~3.0.8",
+    "immer": "^10.2.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "^2.29.1",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "^5.6.2",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
