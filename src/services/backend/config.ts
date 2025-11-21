@@ -21,22 +21,24 @@ import {
 } from '@env';
 
 // ============================================================
-// 🔍 DEBUG: Environment Variable Loading Check
+// 🔍 DEBUG: Environment Variable Loading Check (DEV ONLY)
 // ============================================================
-console.log('\n=== 🔍 ENV DEBUG: Checking @env imports ===');
-console.log('SUPABASE_URL:', {
-  type: typeof SUPABASE_URL,
-  hasValue: !!SUPABASE_URL,
-  length: SUPABASE_URL?.length || 0,
-  preview: SUPABASE_URL ? `${SUPABASE_URL.substring(0, 25)}...` : 'EMPTY/UNDEFINED'
-});
-console.log('SUPABASE_ANON_KEY:', {
-  type: typeof SUPABASE_ANON_KEY,
-  hasValue: !!SUPABASE_ANON_KEY,
-  length: SUPABASE_ANON_KEY?.length || 0,
-  preview: SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 30)}...` : 'EMPTY/UNDEFINED'
-});
-console.log('=== END ENV DEBUG ===\n');
+if (__DEV__) {
+  console.log('\n=== 🔍 ENV DEBUG: Checking @env imports ===');
+  console.log('SUPABASE_URL:', {
+    type: typeof SUPABASE_URL,
+    hasValue: !!SUPABASE_URL,
+    length: SUPABASE_URL?.length || 0,
+    preview: SUPABASE_URL ? `${SUPABASE_URL.substring(0, 25)}...` : 'EMPTY/UNDEFINED'
+  });
+  console.log('SUPABASE_ANON_KEY:', {
+    type: typeof SUPABASE_ANON_KEY,
+    hasValue: !!SUPABASE_ANON_KEY,
+    length: SUPABASE_ANON_KEY?.length || 0,
+    preview: SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 30)}...` : 'EMPTY/UNDEFINED'
+  });
+  console.log('=== END ENV DEBUG ===\n');
+}
 // ============================================================
 
 export const ENV_CONFIG = {
