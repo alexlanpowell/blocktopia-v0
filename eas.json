@@ -47,7 +47,8 @@
     "production": {
       "ios": {
         "appleId": "turntopia@gmail.com",
-        "appleTeamId": "VBS22V63BX"
+        "appleTeamId": "VBS22V63BX",
+        "ascAppId": "6755601044"
       }
     }
   }
