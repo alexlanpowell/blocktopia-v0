@@ -3,27 +3,58 @@
  * Centralized configuration management for all services
  */
 
+import {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  REVENUECAT_API_KEY_IOS,
+  REVENUECAT_API_KEY_ANDROID,
+  ADMOB_APP_ID_IOS,
+  ADMOB_APP_ID_ANDROID,
+  ADMOB_REWARDED_AD_UNIT_IOS,
+  ADMOB_REWARDED_AD_UNIT_ANDROID,
+  ADMOB_INTERSTITIAL_AD_UNIT_IOS,
+  ADMOB_INTERSTITIAL_AD_UNIT_ANDROID,
+  ADMOB_BANNER_AD_UNIT_IOS,
+  ADMOB_BANNER_AD_UNIT_ANDROID,
+} from '@env';
+
+// ============================================================
+// 🔍 DEBUG: Environment Variable Loading Check
+// ============================================================
+console.log('\n=== 🔍 ENV DEBUG: Checking @env imports ===');
+console.log('SUPABASE_URL:', {
+  type: typeof SUPABASE_URL,
+  hasValue: !!SUPABASE_URL,
+  length: SUPABASE_URL?.length || 0,
+  preview: SUPABASE_URL ? `${SUPABASE_URL.substring(0, 25)}...` : 'EMPTY/UNDEFINED'
+});
+console.log('SUPABASE_ANON_KEY:', {
+  type: typeof SUPABASE_ANON_KEY,
+  hasValue: !!SUPABASE_ANON_KEY,
+  length: SUPABASE_ANON_KEY?.length || 0,
+  preview: SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 30)}...` : 'EMPTY/UNDEFINED'
+});
+console.log('=== END ENV DEBUG ===\n');
+// ============================================================
+
 export const ENV_CONFIG = {
   // Supabase
-  SUPABASE_URL: process.env.SUPABASE_URL || '',
-  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
+  SUPABASE_URL: SUPABASE_URL || '',
+  SUPABASE_ANON_KEY: SUPABASE_ANON_KEY || '',
   
   // RevenueCat
-  REVENUECAT_API_KEY_IOS: process.env.REVENUECAT_API_KEY_IOS || '',
-  REVENUECAT_API_KEY_ANDROID: process.env.REVENUECAT_API_KEY_ANDROID || '',
+  REVENUECAT_API_KEY_IOS: REVENUECAT_API_KEY_IOS || '',
+  REVENUECAT_API_KEY_ANDROID: REVENUECAT_API_KEY_ANDROID || '',
   
   // AdMob
-  ADMOB_APP_ID_IOS: process.env.ADMOB_APP_ID_IOS || '',
-  ADMOB_APP_ID_ANDROID: process.env.ADMOB_APP_ID_ANDROID || '',
-  ADMOB_REWARDED_AD_UNIT_IOS: process.env.ADMOB_REWARDED_AD_UNIT_IOS || '',
-  ADMOB_REWARDED_AD_UNIT_ANDROID: process.env.ADMOB_REWARDED_AD_UNIT_ANDROID || '',
-  ADMOB_INTERSTITIAL_AD_UNIT_IOS: process.env.ADMOB_INTERSTITIAL_AD_UNIT_IOS || '',
-  ADMOB_INTERSTITIAL_AD_UNIT_ANDROID: process.env.ADMOB_INTERSTITIAL_AD_UNIT_ANDROID || '',
-  
-  // Google Sign-In
-  GOOGLE_CLIENT_ID_IOS: process.env.GOOGLE_CLIENT_ID_IOS || '',
-  GOOGLE_CLIENT_ID_ANDROID: process.env.GOOGLE_CLIENT_ID_ANDROID || '',
-  GOOGLE_WEB_CLIENT_ID: process.env.GOOGLE_WEB_CLIENT_ID || '',
+  ADMOB_APP_ID_IOS: ADMOB_APP_ID_IOS || '',
+  ADMOB_APP_ID_ANDROID: ADMOB_APP_ID_ANDROID || '',
+  ADMOB_REWARDED_AD_UNIT_IOS: ADMOB_REWARDED_AD_UNIT_IOS || '',
+  ADMOB_REWARDED_AD_UNIT_ANDROID: ADMOB_REWARDED_AD_UNIT_ANDROID || '',
+  ADMOB_INTERSTITIAL_AD_UNIT_IOS: ADMOB_INTERSTITIAL_AD_UNIT_IOS || '',
+  ADMOB_INTERSTITIAL_AD_UNIT_ANDROID: ADMOB_INTERSTITIAL_AD_UNIT_ANDROID || '',
+  ADMOB_BANNER_AD_UNIT_IOS: ADMOB_BANNER_AD_UNIT_IOS || '',
+  ADMOB_BANNER_AD_UNIT_ANDROID: ADMOB_BANNER_AD_UNIT_ANDROID || '',
   
   // Feature Flags
   ENABLE_ADS: true,

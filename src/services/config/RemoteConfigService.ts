@@ -4,8 +4,6 @@
  */
 
 import { getSupabase } from '../backend/SupabaseClient';
-import { useMonetizationStore } from '../../store/monetizationStore';
-import { enhancedAnalytics } from '../analytics/EnhancedAnalyticsService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY_CONFIG = '@remote_config_cache';
@@ -70,7 +68,7 @@ class RemoteConfigService {
       this.fetchConfig().catch(console.error);
       
       this.initialized = true;
-      console.log('✅ Remote Config initialized');
+      // Logging handled by app initialization
     } catch (error) {
       console.error('Remote Config init failed:', error);
     }
@@ -112,7 +110,9 @@ class RemoteConfigService {
       this.lastFetchTime = Date.now();
       await this.saveToCache();
       
-      console.log('🔄 Remote Config updated');
+      if (__DEV__) {
+        console.log('🔄 Remote Config updated');
+      }
     } catch (error) {
       console.error('Failed to fetch remote config:', error);
     }
@@ -153,8 +153,9 @@ class RemoteConfigService {
   /**
    * Check if feature is enabled
    * Handles rollout percentage and app version checks
+   * @param userId - Optional user ID for rollout percentage calculation
    */
-  isFeatureEnabled(key: string): boolean {
+  isFeatureEnabled(key: string, userId?: string | null): boolean {
     // 1. Check defaults if not found
     if (!this.flags.has(key)) {
       return this.flagDefaults[key] ?? false;
@@ -167,7 +168,6 @@ class RemoteConfigService {
 
     // 3. Rollout Percentage
     if (flag.rollout_percentage < 100) {
-      const userId = useMonetizationStore.getState().user.userId;
       if (userId) {
         // Deterministic hash of userId + key to 0-100
         const hash = this.hashString(userId + key);

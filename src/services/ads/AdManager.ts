@@ -46,7 +46,7 @@ class AdManager {
       });
 
       this.initialized = true;
-      console.log('✅ AdMob initialized successfully');
+      // Logging handled by app initialization
     } catch (error) {
       console.error('❌ Failed to initialize AdMob:', error);
       throw error;

@@ -3,19 +3,21 @@
  * Follows Apple HIG and Material Design principles
  */
 
-import React, { useCallback } from 'react';
+import React from 'react';
 import { View, StyleSheet, Dimensions, StatusBar, Platform } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
 import { GameBoard, BOARD_DIMENSIONS } from '../src/rendering/components/GameBoard';
 import { PiecePreview } from '../src/rendering/components/PiecePreview';
 import { HUD } from '../src/rendering/components/HUD';
 import { PowerUpBar } from '../src/rendering/components/PowerUpBar';
 import { LineBlasterOverlay } from '../src/rendering/components/LineBlasterOverlay';
+import { DragPreview } from '../src/rendering/components/DragPreview';
+import { GameBannerAd } from '../src/rendering/components/BannerAd';
 import { useGestures } from '../src/rendering/hooks/useGestures';
 import { COLORS } from '../src/utils/theme';
+import { GAME_CONFIG } from '../src/game/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -24,20 +26,30 @@ export default function GameScreen() {
 
   // Calculate layout positions with safe areas
   const BOARD_OFFSET_X = (SCREEN_WIDTH - BOARD_DIMENSIONS.width) / 2;
-  const BOARD_OFFSET_Y = Math.max(200, insets.top + 130); // Moved down for better spacing
+  // Adjusted for reduced HUD top padding - logo is bigger but padding is reduced
+  const BOARD_OFFSET_Y = Math.max(260, insets.top + 200); // Optimized for visibility and reachability
   const PIECE_PREVIEW_HEIGHT = 150;
   const PIECE_PREVIEW_Y = SCREEN_HEIGHT - PIECE_PREVIEW_HEIGHT - insets.bottom;
 
-  const onPiecePlaced = useCallback(() => {
-    // Trigger success haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
+  // Extract primitive values from objects to pass to worklets (worklets cannot access objects)
+  const boardWidth = BOARD_DIMENSIONS.width;
+  const boardHeight = BOARD_DIMENSIONS.height;
+  const cellSize = BOARD_DIMENSIONS.cellSize;
+  const cellGap = BOARD_DIMENSIONS.cellGap;
+  const boardSize = GAME_CONFIG.BOARD_SIZE;
+  const pieceCount = GAME_CONFIG.PIECE_COUNT;
 
   const { panGesture } = useGestures({
     boardOffsetX: BOARD_OFFSET_X,
     boardOffsetY: BOARD_OFFSET_Y,
     piecePreviewY: PIECE_PREVIEW_Y,
-    onPiecePlaced,
+    boardWidth,
+    boardHeight,
+    cellSize,
+    cellGap,
+    boardSize,
+    pieceCount,
+    screenWidth: SCREEN_WIDTH,
   });
 
   return (
@@ -66,24 +78,23 @@ export default function GameScreen() {
         <View 
           style={[styles.boardContainer, { top: BOARD_OFFSET_Y, left: BOARD_OFFSET_X }]}
           accessible={false}
+          pointerEvents="box-none"
         >
           <GameBoard />
         </View>
 
-        {/* Piece Preview at bottom */}
-        <View 
-          style={[styles.piecePreviewContainer, { bottom: insets.bottom }]}
-          accessible={false}
-        >
-          <PiecePreview />
-        </View>
+        {/* Banner Ad - Above piece preview */}
+        <GameBannerAd />
 
-        {/* Transparent gesture overlay for pieces */}
+        {/* Piece Preview at bottom - Wrapped with GestureDetector for drag functionality */}
         <GestureDetector gesture={panGesture}>
           <View 
-            style={[styles.gestureOverlay, { bottom: insets.bottom }]}
+            style={[styles.piecePreviewContainer, { bottom: insets.bottom }]}
             accessible={false}
-          />
+            pointerEvents="auto"
+          >
+            <PiecePreview />
+          </View>
         </GestureDetector>
 
         {/* Line Blaster Overlay (shown when active) */}
@@ -91,6 +102,9 @@ export default function GameScreen() {
           boardOffsetX={BOARD_OFFSET_X}
           boardOffsetY={BOARD_OFFSET_Y}
         />
+
+        {/* Drag Preview - Shows piece following finger */}
+        <DragPreview />
       </View>
     </View>
   );
@@ -118,13 +132,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-  },
-  gestureOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 150, // Match PIECE_PREVIEW_HEIGHT
-    backgroundColor: 'transparent',
   },
 });
 

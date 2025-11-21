@@ -58,7 +58,9 @@ This configuration has been **aligned with your proven working Unmap app** to en
   "@shopify/react-native-skia": "^2.3.13",
   "react-native-safe-area-context": "^5.6.2",
   "zustand": "^5.0.8",
-  "immer": "^10.2.0"
+  "immer": "^10.2.0",
+  "expo-av": "~16.0.7",
+  "@react-native-community/slider": "^5.1.1"
 }
 ```
 
@@ -91,7 +93,13 @@ This configuration has been **aligned with your proven working Unmap app** to en
 ```json
 {
   "newArchEnabled": true,     // ✅ Required by Reanimated 4.x
-  "jsEngine": "hermes"        // ✅ Added to match Unmap
+  "jsEngine": "hermes",       // ✅ Added to match Unmap
+  "plugins": [
+    ["expo-build-properties", {...}],
+    ["expo-image-picker", {...}],
+    ["react-native-google-mobile-ads", {...}],
+    "expo-av"                 // ✅ Added for audio/video support
+  ]
 }
 ```
 
@@ -281,10 +289,40 @@ Expected result: **✅ SUCCESS** (same as Unmap)
 
 ---
 
-**Configuration Last Updated:** November 19, 2025  
+## 🎵 Audio System Integration (November 20, 2025)
+
+### Added Dependencies
+- **expo-av** (`~16.0.7`) - Audio/video playback (requires native build)
+- **@react-native-community/slider** (`^5.1.1`) - Volume controls UI
+
+### Configuration Changes
+1. ✅ Added `"expo-av"` to plugins array in `app.json`
+2. ✅ Updated `package.json` with audio dependencies
+3. ✅ Regenerated `package-lock.json` with new dependencies
+4. ✅ Fixed deprecated expo-av API calls (removed InterruptionMode)
+5. ✅ Implemented graceful degradation for missing audio files
+
+### Audio System Features
+- Background music with fade in/out
+- Sound effects for all game interactions
+- Separate volume controls for music and SFX
+- Settings persistence (MMKV + Supabase sync)
+- Music pack monetization (cosmetics system)
+- App lifecycle management (pause/resume)
+
+### Important Notes
+- ⚠️ **Requires EAS rebuild** - expo-av is a native module
+- ✅ App works WITHOUT audio files (graceful degradation)
+- ✅ Audio files can be added anytime without code changes
+- ✅ Database migration ready: `supabase-audio-settings-migration.sql`
+
+---
+
+**Configuration Last Updated:** November 20, 2025  
 **Aligned With:** Unmap App Working Configuration (November 16, 2025)  
 **Verification Status:** ✅ TypeScript compiles, dependencies installed  
 **Build Status:** ✅ SUCCESSFULLY BUILT (commit 0cff86e)  
+**Audio Integration:** ✅ expo-av plugin added, ready for rebuild  
 **Failed Builds:** 6  
 **Successful Builds:** 1  
 **Key Fix:** Added explicit `react-native-worklets@0.5.1` + tested with `npm ci --include=dev`

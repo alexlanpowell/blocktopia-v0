@@ -107,8 +107,11 @@ class PowerUpGameIntegration {
         }
       }
 
-      // Haptic feedback
+      // Haptic feedback and sound
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const AudioManager = (await import('../audio/AudioManager')).default;
+      const { SoundEffect } = await import('../audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.POWER_UP_USE);
 
       analyticsService.logEvent('power_up_applied', {
         type: PowerUpType.MAGIC_WAND,
@@ -157,8 +160,11 @@ class PowerUpGameIntegration {
         }
       }
 
-      // Haptic feedback
+      // Haptic feedback and sound
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const AudioManager = (await import('../audio/AudioManager')).default;
+      const { SoundEffect } = await import('../audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.POWER_UP_USE);
 
       analyticsService.logEvent('power_up_applied', {
         type: PowerUpType.PIECE_SWAP,
@@ -217,6 +223,9 @@ class PowerUpGameIntegration {
 
       // Haptic feedback
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const AudioManager = (await import('../audio/AudioManager')).default;
+      const { SoundEffect } = await import('../audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.POWER_UP_USE);
 
       analyticsService.logEvent('power_up_applied', {
         type: PowerUpType.UNDO_MOVE,
@@ -277,6 +286,9 @@ class PowerUpGameIntegration {
 
       // Haptic feedback
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const AudioManager = (await import('../audio/AudioManager')).default;
+      const { SoundEffect } = await import('../audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.POWER_UP_USE);
 
       analyticsService.logEvent('power_up_applied', {
         type: PowerUpType.LINE_BLASTER,

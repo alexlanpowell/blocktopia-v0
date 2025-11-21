@@ -74,6 +74,33 @@ class ErrorTracker {
   }
 
   /**
+   * Check if error should be filtered (non-critical native module errors)
+   */
+  private shouldFilterError(error: Error | string, context: string): boolean {
+    const errorMessage = typeof error === 'string' ? error : error.message;
+    const errorStack = typeof error === 'string' ? '' : error.stack || '';
+
+    // Filter out known non-critical native module errors
+    const filteredPatterns = [
+      /Cannot find native module 'ExponentImagePicker'/i,
+      /native module.*not found/i,
+      /Module.*does not exist/i,
+    ];
+
+    // Only filter if it's a native module error and not in a critical context
+    const isNativeModuleError = filteredPatterns.some(pattern => 
+      pattern.test(errorMessage) || pattern.test(errorStack)
+    );
+
+    if (isNativeModuleError && context !== 'Global error handler') {
+      // These are expected in dev mode when modules aren't configured
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Track error with context
    */
   trackError(
@@ -83,6 +110,15 @@ class ErrorTracker {
     additionalData?: Record<string, any>
   ): void {
     const errorObj = typeof error === 'string' ? new Error(error) : error;
+
+    // Filter non-critical errors
+    if (this.shouldFilterError(errorObj, context)) {
+      if (__DEV__) {
+        // Still log in dev mode but with lower severity
+        console.warn(`⚠️ [FILTERED] ${context}:`, errorObj.message);
+      }
+      return;
+    }
 
     const report: ErrorReport = {
       error: errorObj,
@@ -98,7 +134,7 @@ class ErrorTracker {
       this.errorHistory.shift();
     }
 
-    // Log to analytics
+    // Log to analytics (only for non-filtered errors)
     enhancedAnalytics.trackError(errorObj, context);
 
     // Log to console

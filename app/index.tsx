@@ -4,28 +4,94 @@
  * Integrated with authentication and monetization
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../src/utils/theme';
-import { useUser, useGems, useIsPremium } from '../src/store/monetizationStore';
+import { useUser, useGems, useIsPremium, useMonetizationStore } from '../src/store/monetizationStore';
+import { useGameStore } from '../src/store/gameStore';
+import { GamePersistenceService } from '../src/services/game/GamePersistenceService';
 import { AuthModal } from '../src/rendering/components/AuthModal';
 import { Shop } from '../src/rendering/components/Shop';
 import { CustomizationScreen } from '../src/rendering/screens/CustomizationScreen';
 import { AdminDashboard } from '../src/rendering/screens/AdminDashboard';
+import { WelcomeToast } from '../src/rendering/components/WelcomeToast';
 
 export default function IndexScreen() {
   const insets = useSafeAreaInsets();
   const user = useUser();
   const gems = useGems();
   const isPremium = useIsPremium();
+  const firstLaunch = useMonetizationStore(state => state.firstLaunch);
+  const setFirstLaunch = useMonetizationStore(state => state.setFirstLaunch);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showShop, setShowShop] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showWelcomeToast, setShowWelcomeToast] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
+  const [hasActiveGame, setHasActiveGame] = useState(false);
+  const [isCheckingGame, setIsCheckingGame] = useState(true);
+  
+  const restartGame = useGameStore(state => state.restartGame);
+  const loadGameState = useGameStore(state => state.gameState);
+
+  // Check for active game on mount
+  useEffect(() => {
+    const checkActiveGame = async () => {
+      setIsCheckingGame(true);
+      try {
+        const hasActive = await GamePersistenceService.hasActiveGame();
+        setHasActiveGame(hasActive);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('[IndexScreen] Error checking active game:', error);
+        }
+        setHasActiveGame(false);
+      } finally {
+        setIsCheckingGame(false);
+      }
+    };
+    
+    checkActiveGame();
+  }, []);
+
+  // Show welcome toast on first launch
+  useEffect(() => {
+    if (firstLaunch && user.isAuthenticated && user.username) {
+      setShowWelcomeToast(true);
+      // Mark as no longer first launch after showing
+      setTimeout(() => {
+        setFirstLaunch(false);
+      }, 100);
+    }
+  }, [firstLaunch, user.isAuthenticated, user.username]);
+  
+  const handleContinueGame = async () => {
+    try {
+      // Load saved game state
+      const savedState = await GamePersistenceService.loadGameState();
+      if (savedState) {
+        const gameState = GamePersistenceService.deserializeGameState(savedState);
+        useGameStore.setState({ gameState });
+        router.push('/game');
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[IndexScreen] Error loading game:', error);
+      }
+      // Fallback to new game
+      handleNewGame();
+    }
+  };
+  
+  const handleNewGame = () => {
+    restartGame();
+    GamePersistenceService.clearSavedGame().catch(() => {});
+    router.push('/game');
+  };
 
   const handleDebugTap = () => {
     setDebugTapCount(c => {
@@ -48,14 +114,28 @@ export default function IndexScreen() {
       />
       
       <View style={[styles.content, { paddingTop: Math.max(insets.top, 20) }]}>
-        {/* User Profile Header */}
+        {/* Welcome Toast */}
+        {user.isAuthenticated && user.username && (
+          <WelcomeToast
+            username={user.username}
+            visible={showWelcomeToast}
+            onDismiss={() => setShowWelcomeToast(false)}
+          />
+        )}
+
+        {/* User Profile Header - Always show username if authenticated */}
         <View style={styles.headerRow}>
           {user.isAuthenticated ? (
             <View style={styles.userInfo}>
-              <Text style={styles.usernameText}>
-                {user.username || 'Player'}
-                {isPremium && ' 👑'}
-              </Text>
+              <View style={styles.usernameContainer}>
+                <Text style={styles.usernameLabel}>
+                  {user.isAnonymous ? '👤 Guest' : '👤'}
+                </Text>
+                <Text style={styles.usernameText}>
+                  {user.username || 'Player'}
+                </Text>
+                {isPremium && <Text style={styles.premiumIcon}>👑</Text>}
+              </View>
               <View style={styles.gemsContainer}>
                 <Text style={styles.gemIcon}>💎</Text>
                 <Text style={styles.gemsText}>{gems}</Text>
@@ -81,25 +161,67 @@ export default function IndexScreen() {
         />
         <Text style={styles.subtitle}>Block Puzzle Game</Text>
 
-        <TouchableOpacity
-          style={styles.playButton}
-          onPress={() => router.push('/game')}
-          activeOpacity={0.7}
-          accessibilityLabel="Start playing Blocktopia"
-          accessibilityRole="button"
-          accessibilityHint="Navigates to the game screen"
-        >
-          <LinearGradient
-            colors={[COLORS.primary.cyan, COLORS.primary.purple]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.playButtonGradient}
+        {/* Play/Continue Buttons */}
+        {isCheckingGame ? (
+          <View style={styles.playButton}>
+            <Text style={styles.playButtonText}>Loading...</Text>
+          </View>
+        ) : hasActiveGame ? (
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              style={[styles.playButton, styles.continueButton]}
+              onPress={handleContinueGame}
+              activeOpacity={0.7}
+              accessibilityLabel="Continue your saved game"
+              accessibilityRole="button"
+            >
+              <LinearGradient
+                colors={[COLORS.accent.success, COLORS.primary.cyan]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.playButtonGradient}
+              >
+                <Text style={styles.playButtonText}>Continue</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.playButton, styles.newGameButton]}
+              onPress={handleNewGame}
+              activeOpacity={0.7}
+              accessibilityLabel="Start a new game"
+              accessibilityRole="button"
+            >
+              <LinearGradient
+                colors={[COLORS.ui.cardBackground, COLORS.ui.cardBackground]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.playButtonGradient}
+              >
+                <Text style={[styles.playButtonText, styles.newGameButtonText]}>New Game</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={handleNewGame}
+            activeOpacity={0.7}
+            accessibilityLabel="Start playing Blocktopia"
+            accessibilityRole="button"
+            accessibilityHint="Navigates to the game screen"
           >
-            <Text style={styles.playButtonText}>Play</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={[COLORS.primary.cyan, COLORS.primary.purple]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.playButtonGradient}
+            >
+              <Text style={styles.playButtonText}>Play</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
-        {/* Shop Button */}
+        {/* Action Buttons */}
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.secondaryButton}
@@ -135,6 +257,17 @@ export default function IndexScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+
+        {/* Settings Button */}
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => router.push('/settings')}
+          activeOpacity={0.7}
+          accessibilityLabel="Open settings"
+          accessibilityRole="button"
+        >
+          <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
+        </TouchableOpacity>
 
         <View style={styles.instructions}>
           <Text style={styles.instructionText} accessibilityRole="header">
@@ -225,11 +358,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
+    ...SHADOWS.medium,
+  },
+  usernameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  usernameLabel: {
+    fontSize: 14,
+    color: COLORS.ui.textSecondary,
+    fontWeight: '500',
   },
   usernameText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
     color: COLORS.ui.text,
+    letterSpacing: 0.3,
+  },
+  premiumIcon: {
+    fontSize: 18,
+    marginLeft: SPACING.xs,
   },
   gemsContainer: {
     flexDirection: 'row',
@@ -262,8 +411,8 @@ const styles = StyleSheet.create({
     color: COLORS.primary.cyan,
   },
   logoImage: {
-    width: 320,
-    height: 100,
+    width: 403,
+    height: 126,
     marginBottom: SPACING.md,
   },
   subtitle: {
@@ -272,11 +421,27 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xxl * 2,
     fontWeight: '500',
   },
+  buttonGroup: {
+    width: '100%',
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
   playButton: {
     borderRadius: BORDER_RADIUS.xl,
     marginBottom: SPACING.lg,
     overflow: 'hidden',
     ...SHADOWS.glow,
+  },
+  continueButton: {
+    marginBottom: 0,
+  },
+  newGameButton: {
+    marginBottom: 0,
+    borderWidth: 2,
+    borderColor: COLORS.ui.cardBorder,
+  },
+  newGameButtonText: {
+    color: COLORS.ui.text,
   },
   playButtonGradient: {
     paddingHorizontal: SPACING.xxl * 2,
@@ -332,6 +497,25 @@ const styles = StyleSheet.create({
     color: COLORS.ui.textSecondary,
     marginBottom: SPACING.sm,
     lineHeight: 24,
+  },
+  settingsButton: {
+    backgroundColor: COLORS.ui.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.ui.cardBorder,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
+    alignItems: 'center',
+    width: '100%',
+    ...SHADOWS.medium,
+  },
+  settingsButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.ui.text,
+    letterSpacing: 0.5,
   },
   versionText: {
     color: COLORS.ui.textSecondary,

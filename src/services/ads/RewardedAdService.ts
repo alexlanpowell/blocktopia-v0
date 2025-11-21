@@ -1,6 +1,6 @@
 /**
- * RewardedAdService - Manages rewarded video ads for the "Continue" feature
- * Users watch an ad to get a second chance when game is over
+ * RewardedAdService - Manages rewarded video ads for the "Extra Try" feature
+ * Users watch an ad to get a second chance when game is over (clears 4 random rows)
  */
 
 import {
@@ -57,7 +57,7 @@ class RewardedAdService {
       this.rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
         console.log('🎁 User earned reward:', reward);
         analyticsService.logEvent('rewarded_ad_completed', {
-          ad_type: 'continue',
+          ad_type: 'extra_try',
           reward_amount: reward.amount,
           reward_type: reward.type,
         });
@@ -139,7 +139,7 @@ class RewardedAdService {
         this.rewarded!.show();
         
         analyticsService.logEvent('rewarded_ad_shown', {
-          ad_type: 'continue',
+          ad_type: 'extra_try',
         });
       } catch (error) {
         console.error('Failed to show rewarded ad:', error);

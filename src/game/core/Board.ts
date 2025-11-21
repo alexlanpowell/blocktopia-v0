@@ -32,6 +32,31 @@ export class Board {
   }
 
   /**
+   * Set the board state (for game state restoration)
+   */
+  setGrid(newGrid: BoardGrid): void {
+    // Validate grid dimensions
+    if (!newGrid || !Array.isArray(newGrid) || newGrid.length !== this.size) {
+      if (__DEV__) {
+        console.error('[Board] Invalid grid dimensions for setGrid');
+      }
+      return;
+    }
+
+    // Validate each row
+    for (let y = 0; y < newGrid.length; y++) {
+      if (!Array.isArray(newGrid[y]) || newGrid[y].length !== this.size) {
+        if (__DEV__) {
+          console.error(`[Board] Invalid row ${y} dimensions`);
+        }
+        return;
+      }
+    }
+
+    this.grid = newGrid;
+  }
+
+  /**
    * Get board size
    */
   getSize(): number {
@@ -43,23 +68,52 @@ export class Board {
    * Adapted from Unity's IsInRange() and IsEmpty()
    */
   canPlacePiece(piece: Piece, x: number, y: number): boolean {
-    // Check if all cells of the piece are within bounds and empty
-    for (const cell of piece.structure) {
-      const targetX = x + cell.x;
-      const targetY = y + cell.y;
-
-      // Check bounds
-      if (!this.isInBounds(targetX, targetY)) {
+    try {
+      // Validate inputs
+      if (!piece || !piece.structure || !Array.isArray(piece.structure)) {
+        if (__DEV__) {
+          console.error('Invalid piece in canPlacePiece:', piece);
+        }
         return false;
       }
 
-      // Check if cell is empty
-      if (this.grid[targetY][targetX] !== null) {
+      if (!this.grid || !Array.isArray(this.grid)) {
+        if (__DEV__) {
+          console.error('Invalid grid in canPlacePiece');
+        }
         return false;
       }
+
+      // Check if all cells of the piece are within bounds and empty
+      for (const cell of piece.structure) {
+        if (!cell || typeof cell.x !== 'number' || typeof cell.y !== 'number') {
+          if (__DEV__) {
+            console.error('Invalid cell in piece structure:', cell);
+          }
+          return false;
+        }
+
+        const targetX = x + cell.x;
+        const targetY = y + cell.y;
+
+        // Check bounds
+        if (!this.isInBounds(targetX, targetY)) {
+          return false;
+        }
+
+        // Check if cell is empty
+        if (this.grid[targetY] && this.grid[targetY][targetX] !== null) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error in canPlacePiece:', error);
+      }
+      return false;
     }
-
-    return true;
   }
 
   /**
@@ -67,6 +121,54 @@ export class Board {
    */
   private isInBounds(x: number, y: number): boolean {
     return x >= 0 && x < this.size && y >= 0 && y < this.size;
+  }
+
+  /**
+   * Find the best snap position for a piece near the given grid coordinates
+   * Implements magnetic snapping with configurable tolerance
+   * @param gridX - Floating point grid X position
+   * @param gridY - Floating point grid Y position
+   * @param piece - The piece to place
+   * @param tolerance - Maximum distance for snapping (in grid cells, default 0.4)
+   * @returns Best valid snap position or null if no valid position within tolerance
+   */
+  findBestSnapPosition(
+    gridX: number,
+    gridY: number,
+    piece: Piece,
+    tolerance: number = 0.4
+  ): { x: number; y: number } | null {
+    // Get candidate positions (floor and ceil of current position)
+    const candidates = [
+      { x: Math.floor(gridX), y: Math.floor(gridY) },
+      { x: Math.ceil(gridX), y: Math.floor(gridY) },
+      { x: Math.floor(gridX), y: Math.ceil(gridY) },
+      { x: Math.ceil(gridX), y: Math.ceil(gridY) },
+    ];
+
+    // Find closest valid position within tolerance
+    let bestPosition: { x: number; y: number } | null = null;
+    let minDistance = tolerance;
+
+    for (const candidate of candidates) {
+      // Check if piece can be placed at this position
+      if (!this.canPlacePiece(piece, candidate.x, candidate.y)) {
+        continue;
+      }
+
+      // Calculate Euclidean distance from current position
+      const dx = Math.abs(gridX - candidate.x);
+      const dy = Math.abs(gridY - candidate.y);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Update best if closer and within tolerance
+      if (distance < minDistance) {
+        minDistance = distance;
+        bestPosition = candidate;
+      }
+    }
+
+    return bestPosition;
   }
 
   /**

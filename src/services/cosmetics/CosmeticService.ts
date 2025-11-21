@@ -106,6 +106,16 @@ class CosmeticService {
     // Set as active
     store.setActiveCosmetic(cosmetic.type, cosmeticId);
 
+    // If music pack, play the new music
+    if (cosmetic.type === CosmeticType.MUSIC_PACK) {
+      const musicTrack = this.mapCosmeticIdToMusicTrack(cosmeticId);
+      const AudioManager = (await import('../audio/AudioManager')).default;
+      const { audioSettingsStorage } = await import('../audio/AudioSettingsStorage');
+      
+      await AudioManager.playMusic(musicTrack);
+      await audioSettingsStorage.setCurrentMusicPack(cosmeticId);
+    }
+
     // Sync to backend
     await store.syncWithBackend();
 
@@ -265,6 +275,20 @@ class CosmeticService {
     }
 
     return total;
+  }
+
+  /**
+   * Map cosmetic ID to music track enum
+   */
+  private mapCosmeticIdToMusicTrack(cosmeticId: string): any {
+    const { MusicTrack } = require('../audio/AudioManager');
+    const mapping: Record<string, any> = {
+      'none': MusicTrack.NONE,
+      'ambient': MusicTrack.AMBIENT,
+      'default-saloon': MusicTrack.DEFAULT_SALOON,
+      'electronic': MusicTrack.ELECTRONIC,
+    };
+    return mapping[cosmeticId] || MusicTrack.AMBIENT;
   }
 }
 

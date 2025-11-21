@@ -103,11 +103,13 @@ export const TYPOGRAPHY = {
     fontSize: 32,
     fontWeight: '700' as const,
     letterSpacing: 0.5,
+    color: '#ffffff', // White text for visibility on dark backgrounds
   },
   subtitle: {
     fontSize: 20,
     fontWeight: '600' as const,
     letterSpacing: 0.3,
+    color: '#ffffff', // White text for visibility on dark backgrounds
   },
   h3: {
     fontSize: 18,

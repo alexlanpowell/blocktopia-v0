@@ -4,8 +4,6 @@
  */
 
 import { remoteConfig } from '../config/RemoteConfigService';
-import { enhancedAnalytics } from '../analytics/EnhancedAnalyticsService';
-import { useMonetizationStore } from '../../store/monetizationStore';
 
 export enum ABTestType {
   PRICING = 'pricing_test',
@@ -35,10 +33,11 @@ class OptimizationService {
   /**
    * Get optimized value for a parameter
    * Checks for active A/B tests first, then falls back to Remote Config
+   * @param getVariantFn - Optional function to get A/B test variant (breaks circular dependency)
    */
-  getOptimizedValue<T>(key: string, defaultValue: T): T {
+  getOptimizedValue<T>(key: string, defaultValue: T, getVariantFn?: (testId: string) => string | null): T {
     // 1. Check if there's an active A/B test for this key
-    const testVariant = this.getVariantForConfigKey(key);
+    const testVariant = this.getVariantForConfigKey(key, getVariantFn);
     
     if (testVariant) {
       // Logic to return variant value would go here
@@ -58,24 +57,31 @@ class OptimizationService {
 
   /**
    * Initialize/Start an A/B test
+   * @param assignVariantFn - Function to assign variant (from EnhancedAnalyticsService)
    */
-  startTest(testId: string, variants: string[]): string {
-    // Assign user to variant
-    const variant = enhancedAnalytics.assignABTestVariant(testId, variants);
+  startTest(testId: string, variants: string[], assignVariantFn: (testId: string, variants: string[]) => string): string {
+    // Assign user to variant using provided function
+    const variant = assignVariantFn(testId, variants);
     this.activeTests.set(testId, variant);
     return variant;
   }
 
   /**
    * Get assigned variant for a test
+   * @param getVariantFn - Function to get variant (from EnhancedAnalyticsService)
    */
-  getTestVariant(testId: string): string | null {
-    return enhancedAnalytics.getABTestVariant(testId);
+  getTestVariant(testId: string, getVariantFn?: (testId: string) => string | null): string | null {
+    // Check local cache first
+    if (this.activeTests.has(testId)) {
+      return this.activeTests.get(testId) || null;
+    }
+    // Fallback to provided function
+    return getVariantFn ? getVariantFn(testId) : null;
   }
 
   // --- Optimization Logic ---
 
-  private getVariantForConfigKey(key: string): string | null {
+  private getVariantForConfigKey(key: string, getVariantFn?: (testId: string) => string | null): string | null {
     // Map config keys to tests
     const testMap: Record<string, string> = {
       'ad_interstitial_frequency': ABTestType.AD_FREQUENCY,
@@ -85,7 +91,7 @@ class OptimizationService {
     const testId = testMap[key];
     if (!testId) return null;
 
-    return this.getTestVariant(testId);
+    return this.getTestVariant(testId, getVariantFn);
   }
 
   private getVariantValue<T>(key: string, variant: string): T | null {

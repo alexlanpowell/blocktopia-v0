@@ -39,7 +39,7 @@ class AnalyticsService {
       // Firebase Analytics will be initialized in Phase 7
       // For now, just mark as initialized
       this.initialized = true;
-      console.log('✅ Analytics service initialized');
+      // Logging handled by app initialization
     } catch (error) {
       console.error('Analytics initialization error:', error);
     }

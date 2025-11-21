@@ -1,17 +1,12 @@
 /**
  * Authentication Service
- * Handles Apple Sign-In, Google Sign-In, Anonymous Auth, and Account Linking
+ * Handles Email/Password and Anonymous Authentication
  */
 
-import { Platform, Alert } from 'react-native';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import * as Crypto from 'expo-crypto';
+import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabase } from '../backend/SupabaseClient';
-import { ENV_CONFIG } from '../backend/config';
 import type { Session, User } from '@supabase/supabase-js';
-
-export type AuthProvider = 'apple' | 'google' | 'anonymous';
 
 export interface AuthResult {
   success: boolean;
@@ -25,11 +20,15 @@ export interface UserProfile {
   email: string | null;
   username: string | null;
   avatar_url: string | null;
+  bio: string | null;
   gems: number;
   premium_status: boolean;
   premium_expires_at: string | null;
   created_at: string;
 }
+
+// AsyncStorage key for persistent guest sessions
+const GUEST_USER_KEY = '@blocktopia_guest_user_id';
 
 /**
  * Authentication Service Singleton
@@ -37,6 +36,7 @@ export interface UserProfile {
 class AuthService {
   private static instance: AuthService;
   private initialized: boolean = false;
+  private authListeners: ((user: User | null) => void)[] = [];
 
   private constructor() {}
 
@@ -54,202 +54,147 @@ class AuthService {
     if (this.initialized) return;
 
     try {
-      // Initialize Google Sign-In
-      await this.initializeGoogleSignIn();
-      
       this.initialized = true;
-      console.log('✅ Auth service initialized');
+      // Logging handled by app initialization
     } catch (error) {
       console.error('Auth service initialization error:', error);
     }
   }
 
   /**
-   * Initialize Google Sign-In
+   * Restore existing guest session from stored user ID
+   * 
+   * NOTE: Supabase anonymous auth doesn't support signing into an existing anonymous account.
+   * However, Supabase sessions persist across app restarts via refresh tokens.
+   * So if the user hasn't explicitly signed out, the session should still be valid.
+   * 
+   * @private
    */
-  private async initializeGoogleSignIn(): Promise<void> {
+  private async restoreGuestSession(userId: string): Promise<AuthResult> {
     try {
-      await GoogleSignin.configure({
-        webClientId: ENV_CONFIG.GOOGLE_WEB_CLIENT_ID,
-        iosClientId: ENV_CONFIG.GOOGLE_CLIENT_ID_IOS,
-        offlineAccess: true,
-      });
-      console.log('✅ Google Sign-In configured');
-    } catch (error) {
-      console.error('Google Sign-In configuration error:', error);
-    }
-  }
-
-  /**
-   * Sign in with Apple
-   */
-  async signInWithApple(): Promise<AuthResult> {
-    try {
-      // Check if Apple Authentication is available
-      const isAvailable = await AppleAuthentication.isAvailableAsync();
-      if (!isAvailable) {
-        return {
-          success: false,
-          user: null,
-          session: null,
-          error: 'Apple Sign-In is not available on this device',
-        };
-      }
-
-      // Request Apple credentials
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      // Get identity token
-      const identityToken = credential.identityToken;
-      if (!identityToken) {
-        throw new Error('No identity token returned from Apple');
-      }
-
-      // Sign in with Supabase
       const supabase = getSupabase();
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: identityToken,
-      });
-
-      if (error) throw error;
-
-      // Create or update user profile
-      if (data.user) {
-        await this.createOrUpdateProfile(data.user, {
-          username: credential.fullName?.givenName || null,
-          email: credential.email || data.user.email || null,
-        });
+      
+      // First, check if we have a valid session with matching user ID
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session && session.user.id === userId) {
+        // Session is still valid and matches stored guest ID
+        console.log('✅ Restored existing guest session (session still valid)');
+        
+        // Notify listeners since Supabase won't fire event for existing session
+        this.authListeners.forEach(listener => listener(session.user));
+        
+        return {
+          success: true,
+          user: session.user,
+          session: session,
+        };
       }
 
-      return {
-        success: true,
-        user: data.user,
-        session: data.session,
-      };
-    } catch (error: any) {
-      console.error('Apple Sign-In error:', error);
-      
-      if (error.code === 'ERR_CANCELED') {
+      // Session doesn't exist or user ID doesn't match
+      // Check if profile exists in database
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.warn('Error checking guest profile:', profileError);
         return {
           success: false,
           user: null,
           session: null,
-          error: 'Sign-in cancelled',
+          error: 'Failed to verify guest account',
         };
       }
 
+      // If profile doesn't exist, can't restore
+      if (!profile) {
+        console.log('Guest profile not found, will create new account');
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'Guest account not found',
+        };
+      }
+
+      // Profile exists but no valid session
+      // This means the user explicitly signed out
+      // Since Supabase anonymous auth doesn't support signing into existing accounts,
+      // we can't restore this session. Return failure so a new account will be created.
+      console.log('⚠️ Guest account exists but session expired. Cannot restore anonymous session.');
+      console.log('   Note: Supabase anonymous auth doesn\'t support signing into existing accounts.');
+      console.log('   A new guest account will be created.');
+      
       return {
         success: false,
         user: null,
         session: null,
-        error: error.message || 'Apple Sign-In failed',
-      };
-    }
-  }
-
-  /**
-   * Sign in with Google
-   */
-  async signInWithGoogle(): Promise<AuthResult> {
-    try {
-      // Check Play Services
-      await GoogleSignin.hasPlayServices();
-
-      // Sign in
-      const response = await GoogleSignin.signIn();
-      
-      // Extract idToken from response
-      const idToken = response.data?.idToken;
-      
-      if (!idToken) {
-        throw new Error('No ID token returned from Google');
-      }
-
-      // Sign in with Supabase
-      const supabase = getSupabase();
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: idToken,
-      });
-
-      if (error) throw error;
-
-      // Create or update user profile
-      if (data.user && response.data?.user) {
-        await this.createOrUpdateProfile(data.user, {
-          username: response.data.user.name || null,
-          email: response.data.user.email || null,
-          avatar_url: response.data.user.photo || null,
-        });
-      }
-
-      return {
-        success: true,
-        user: data.user,
-        session: data.session,
+        error: 'Guest session expired - cannot restore anonymous sessions',
       };
     } catch (error: any) {
-      console.error('Google Sign-In error:', error);
-
-      if (error.code === 'SIGN_IN_CANCELLED') {
-        return {
-          success: false,
-          user: null,
-          session: null,
-          error: 'Sign-in cancelled',
-        };
-      }
-
+      console.error('Error restoring guest session:', error);
       return {
         success: false,
         user: null,
         session: null,
-        error: error.message || 'Google Sign-In failed',
+        error: error.message || 'Failed to restore guest session',
       };
     }
   }
 
   /**
    * Sign in anonymously
+   * Uses Supabase's native anonymous authentication
+   * Requires "Anonymous Sign-Ins" enabled in Supabase Dashboard
+   * 
+   * This method now checks for an existing guest session first.
+   * If found, it restores that session. Otherwise, creates a new anonymous account.
    */
   async signInAnonymously(): Promise<AuthResult> {
     try {
       const supabase = getSupabase();
       
-      // Generate anonymous user credentials
-      const anonymousId = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        `anonymous_${Date.now()}_${Math.random()}`
-      );
+      // Check for existing guest session in AsyncStorage
+      const storedGuestId = await AsyncStorage.getItem(GUEST_USER_KEY);
       
-      const email = `${anonymousId.slice(0, 16)}@anonymous.blocktopia.app`;
-      const password = anonymousId;
-
-      // Try to sign up
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            is_anonymous: true,
-          },
-        },
-      });
+      if (storedGuestId) {
+        console.log('🔄 Found stored guest ID, attempting to restore session...');
+        const restoreResult = await this.restoreGuestSession(storedGuestId);
+        
+        if (restoreResult.success && restoreResult.user) {
+          console.log('✅ Successfully restored guest session');
+          return restoreResult;
+        }
+        
+        // If restore failed, clear the stored ID and create new account
+        console.log('⚠️ Failed to restore guest session, creating new account');
+        await AsyncStorage.removeItem(GUEST_USER_KEY);
+      }
+      
+      // No stored guest or restore failed - create new anonymous account
+      console.log('🆕 Creating new anonymous account...');
+      const { data, error } = await supabase.auth.signInAnonymously();
 
       if (error) throw error;
 
-      // Create profile
+      // Create profile with random username
       if (data.user) {
-        await this.createOrUpdateProfile(data.user, {
-          username: `Guest${Date.now().toString().slice(-6)}`,
-          email: null, // Don't store anonymous email in profile
+        const timestamp = Date.now();
+        const username = `Guest${timestamp.toString().slice(-6)}`;
+        
+        // Store guest ID for future sessions
+        await AsyncStorage.setItem(GUEST_USER_KEY, data.user.id);
+        
+        // Create profile with retry logic to handle timing issues
+        await this.createOrUpdateProfileWithRetry(data.user, {
+          username,
+          email: null, // Anonymous users don't have email
         });
+        
+        console.log('✅ Created new guest account:', username);
       }
 
       return {
@@ -269,171 +214,385 @@ class AuthService {
   }
 
   /**
-   * Create or update user profile in database
+   * Sign up with email and password
    */
-  private async createOrUpdateProfile(
-    user: User,
-    profileData: Partial<UserProfile>
-  ): Promise<void> {
+  async signUpWithEmail(
+    email: string,
+    password: string,
+    username: string
+  ): Promise<AuthResult> {
     try {
       const supabase = getSupabase();
 
+      // Validate inputs
+      if (!email || !email.includes('@')) {
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'Please enter a valid email address',
+        };
+      }
+
+      if (!password || password.length < 6) {
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'Password must be at least 6 characters',
+        };
+      }
+
+      if (!username || username.length < 3) {
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'Username must be at least 3 characters',
+        };
+      }
+
+      // Check if username is already taken
+      const { data: existingProfile, error: usernameCheckError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
+
+      if (usernameCheckError && usernameCheckError.code !== 'PGRST116') {
+        // PGRST116 is "no rows returned" which is fine
+        console.warn('Username check error:', usernameCheckError);
+        // Continue anyway - database constraint will catch duplicates
+      }
+
+      if (existingProfile) {
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'Username is already taken',
+        };
+      }
+
+      // Sign up
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            display_name: username,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      // Create profile
+      if (data.user) {
+        await this.createOrUpdateProfile(data.user, {
+          username,
+          email,
+        });
+      }
+
+      return {
+        success: true,
+        user: data.user,
+        session: data.session,
+      };
+    } catch (error: any) {
+      console.error('Email sign-up error:', error);
+      return {
+        success: false,
+        user: null,
+        session: null,
+        error: error.message || 'Sign-up failed',
+      };
+    }
+  }
+
+  /**
+   * Sign in with email and password
+   */
+  async signInWithEmail(email: string, password: string): Promise<AuthResult> {
+    try {
+      const supabase = getSupabase();
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        user: data.user,
+        session: data.session,
+      };
+    } catch (error: any) {
+      console.error('Email sign-in error:', error);
+      
+      let errorMessage = 'Sign-in failed';
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please verify your email before signing in';
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+
+      return {
+        success: false,
+        user: null,
+        session: null,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Reset password
+   */
+  async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const supabase = getSupabase();
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'blocktopia://reset-password',
+      });
+
+      if (error) throw error;
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to send password reset email',
+      };
+    }
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(updates: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          email: profileData.email || user.email,
-          username: profileData.username,
-          avatar_url: profileData.avatar_url,
+        .update({
+          ...updates,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      // Also create user_settings entry
-      await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user.id,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
-
-      console.log('✅ User profile created/updated');
-    } catch (error) {
-      console.error('Error creating/updating profile:', error);
-    }
-  }
-
-  /**
-   * Link anonymous account to social provider
-   */
-  async linkAccount(provider: 'apple' | 'google'): Promise<AuthResult> {
-    try {
-      const supabase = getSupabase();
-      const currentUser = await supabase.auth.getUser();
-
-      if (!currentUser.data.user) {
-        throw new Error('No user currently signed in');
-      }
-
-      // Check if user is anonymous
-      const isAnonymous = currentUser.data.user.user_metadata?.is_anonymous;
-      if (!isAnonymous) {
-        throw new Error('Current user is not anonymous');
-      }
-
-      // Sign in with the new provider
-      let result: AuthResult;
-      if (provider === 'apple') {
-        result = await this.signInWithApple();
-      } else {
-        result = await this.signInWithGoogle();
-      }
-
-      if (result.success && result.user) {
-        // Transfer data from anonymous account to new account
-        await this.transferAnonymousData(currentUser.data.user.id, result.user.id);
-        
-        Alert.alert(
-          'Account Linked!',
-          'Your progress has been saved to your new account.'
-        );
-      }
-
-      return result;
+      return { success: true };
     } catch (error: any) {
-      console.error('Account linking error:', error);
+      console.error('Profile update error:', error);
       return {
         success: false,
-        user: null,
-        session: null,
-        error: error.message || 'Account linking failed',
+        error: error.message || 'Failed to update profile',
       };
     }
   }
 
   /**
-   * Transfer data from anonymous account to new account
+   * Upload avatar image
    */
-  private async transferAnonymousData(
-    fromUserId: string,
-    toUserId: string
-  ): Promise<void> {
+  async uploadAvatar(imageUri: string): Promise<{ success: boolean; avatarUrl?: string; error?: string }> {
     try {
       const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
 
-      // Transfer gems
-      const { data: fromProfile } = await supabase
+      if (!user) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      // Convert image to blob
+      const response = await fetch(imageUri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+      const blob = await response.blob();
+
+      // Generate unique filename
+      const fileName = `${user.id}/avatar_${Date.now()}.jpg`;
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, blob, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
         .from('profiles')
-        .select('gems')
-        .eq('id', fromUserId)
-        .single();
+        .update({
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
 
-      if (fromProfile && fromProfile.gems > 0) {
-        await supabase
-          .from('profiles')
-          .update({ gems: fromProfile.gems })
-          .eq('id', toUserId);
-      }
+      if (updateError) throw updateError;
 
-      // Transfer power-ups inventory
-      const { data: powerUps } = await supabase
-        .from('power_ups_inventory')
-        .select('*')
-        .eq('user_id', fromUserId);
-
-      if (powerUps && powerUps.length > 0) {
-        await supabase
-          .from('power_ups_inventory')
-          .upsert(
-            powerUps.map(pu => ({
-              ...pu,
-              user_id: toUserId,
-              id: undefined, // Let DB generate new ID
-            }))
-          );
-      }
-
-      // Transfer cosmetics
-      const { data: cosmetics } = await supabase
-        .from('cosmetics_owned')
-        .select('*')
-        .eq('user_id', fromUserId);
-
-      if (cosmetics && cosmetics.length > 0) {
-        await supabase
-          .from('cosmetics_owned')
-          .upsert(
-            cosmetics.map(c => ({
-              ...c,
-              user_id: toUserId,
-              id: undefined,
-            }))
-          );
-      }
-
-      console.log('✅ Anonymous data transferred');
-    } catch (error) {
-      console.error('Error transferring anonymous data:', error);
+      return {
+        success: true,
+        avatarUrl: publicUrl,
+      };
+    } catch (error: any) {
+      console.error('Avatar upload error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to upload avatar',
+      };
     }
   }
 
   /**
+   * Create or update user profile in database
+   */
+  /**
+   * Create or update profile with retry logic to handle race conditions
+   * @private
+   */
+  private async createOrUpdateProfileWithRetry(
+    user: User,
+    profileData: Partial<UserProfile>,
+    maxRetries: number = 3,
+    retryDelay: number = 500
+  ): Promise<void> {
+    let lastError: any = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const supabase = getSupabase();
+
+        const { error } = await supabase
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email: profileData.email || user.email,
+            username: profileData.username,
+            avatar_url: profileData.avatar_url,
+            bio: profileData.bio,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'id',
+          });
+
+        if (error) throw error;
+
+        // Verify profile was created by fetching it
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (verifyError && verifyError.code !== 'PGRST116') {
+          throw verifyError;
+        }
+
+        if (verifyData) {
+          // Profile exists - success!
+          // Also create user_settings entry (non-critical)
+          try {
+            await supabase
+              .from('user_settings')
+              .upsert({
+                user_id: user.id,
+                updated_at: new Date().toISOString(),
+              }, {
+                onConflict: 'user_id',
+              });
+          } catch (settingsError) {
+            // Non-critical - profile was created successfully
+            console.warn('Failed to create user_settings entry:', settingsError);
+          }
+
+          console.log('✅ User profile created/updated');
+          return; // Success - exit retry loop
+        }
+
+        // Profile not found after creation - retry
+        if (attempt < maxRetries) {
+          console.log(`⚠️ Profile not found after creation, retrying (${attempt}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+      } catch (error: any) {
+        lastError = error;
+        if (attempt < maxRetries) {
+          console.log(`⚠️ Profile creation failed, retrying (${attempt}/${maxRetries}):`, error.message);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
+    }
+
+    // All retries failed
+    console.error('❌ Failed to create profile after', maxRetries, 'attempts:', lastError);
+    throw lastError || new Error('Failed to create profile');
+  }
+
+  private async createOrUpdateProfile(
+    user: User,
+    profileData: Partial<UserProfile>
+  ): Promise<void> {
+    // Use retry logic by default
+    return this.createOrUpdateProfileWithRetry(user, profileData);
+  }
+
+  /**
    * Sign out
+   * 
+   * IMPORTANT: For anonymous/guest users, we DON'T actually sign out from Supabase
+   * because Supabase anonymous auth doesn't support signing back into the same account.
+   * Instead, we preserve the session so they can return to their account.
+   * 
+   * For authenticated users (email/password, social), we sign out normally.
    */
   async signOut(): Promise<void> {
     try {
       const supabase = getSupabase();
       
-      // Sign out from Google if signed in
-      try {
-        await GoogleSignin.signOut();
-      } catch (error) {
-        // Ignore errors if not signed in with Google
+      // Check if current user is anonymous before signing out
+      const { data: { user } } = await supabase.auth.getUser();
+      const isAnonymous = user?.is_anonymous || user?.user_metadata?.is_anonymous;
+      
+      if (isAnonymous) {
+        // For anonymous users, DON'T sign out from Supabase
+        // This preserves their session so they can return to the same account
+        console.log('✅ Guest user signed out (session preserved for return)');
+        
+        // Notify listeners that user is "signed out" locally
+        // This ensures the UI updates even though Supabase session remains active
+        this.authListeners.forEach(listener => listener(null));
+        
+        // Note: Guest ID is already in AsyncStorage, so they can return
+        return;
       }
-
+      
+      // For authenticated users, sign out normally
       // Sign out from Supabase
       await supabase.auth.signOut();
 
@@ -444,24 +603,56 @@ class AuthService {
   }
 
   /**
-   * Get current user profile
+   * Get current user profile with retry logic
+   * Handles race conditions where profile might not exist immediately after creation
    */
-  async getUserProfile(): Promise<UserProfile | null> {
+  async getUserProfile(maxRetries: number = 2, retryDelay: number = 500): Promise<UserProfile | null> {
     try {
       const supabase = getSupabase();
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) return null;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      let lastError: any = null;
 
-      if (error) throw error;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle(); // Use maybeSingle to handle no results gracefully
 
-      return data as UserProfile;
+          if (error && error.code !== 'PGRST116') {
+            throw error;
+          }
+
+          if (data) {
+            return data as UserProfile;
+          }
+
+          // Profile doesn't exist yet - might be a timing issue
+          if (attempt < maxRetries) {
+            console.log(`⚠️ Profile not found, retrying (${attempt}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue;
+          }
+
+          // Last attempt - profile truly doesn't exist
+          console.warn('Profile not found after retries - user may need to create profile');
+          return null;
+        } catch (error: any) {
+          lastError = error;
+          if (attempt < maxRetries) {
+            console.log(`⚠️ Error fetching profile, retrying (${attempt}/${maxRetries}):`, error.message);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+          }
+        }
+      }
+
+      // All retries failed
+      console.error('Error getting user profile after retries:', lastError);
+      return null;
     } catch (error) {
       console.error('Error getting user profile:', error);
       return null;
@@ -487,6 +678,9 @@ class AuthService {
   onAuthStateChange(callback: (user: User | null) => void): () => void {
     const supabase = getSupabase();
     
+    // Add to local listeners
+    this.authListeners.push(callback);
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         callback(session?.user || null);
@@ -495,7 +689,181 @@ class AuthService {
 
     return () => {
       subscription.unsubscribe();
+      // Remove from local listeners
+      this.authListeners = this.authListeners.filter(cb => cb !== callback);
     };
+  }
+
+  /**
+   * Upgrade anonymous account to permanent account
+   * Converts guest account to full account with email/password
+   */
+  async upgradeAnonymousAccount(email: string, password: string): Promise<AuthResult> {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'No user currently signed in',
+        };
+      }
+
+      // Check if user is anonymous
+      const isAnonymous = user.is_anonymous || user.user_metadata?.is_anonymous;
+      if (!isAnonymous) {
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'Current user is not anonymous',
+        };
+      }
+
+      // Update user with email and password
+      const { data, error } = await supabase.auth.updateUser({
+        email,
+        password,
+        data: {
+          is_anonymous: false, // Mark as no longer anonymous
+        },
+      });
+
+      if (error) throw error;
+
+      // Update profile with email
+      if (data.user) {
+        await this.createOrUpdateProfile(data.user, {
+          email: email,
+        });
+      }
+
+      // Get current session (updateUser doesn't return session)
+      const { data: { session } } = await supabase.auth.getSession();
+
+      return {
+        success: true,
+        user: data.user,
+        session: session,
+      };
+    } catch (error: any) {
+      console.error('Account upgrade error:', error);
+      return {
+        success: false,
+        user: null,
+        session: null,
+        error: error.message || 'Failed to upgrade account',
+      };
+    }
+  }
+
+  /**
+   * Delete user account and all associated data
+   * WARNING: This is irreversible
+   * 
+   * NOTE: This deletes user data from tables but cannot delete the auth user itself
+   * from the client. To fully delete the auth user, you need to:
+   * 1. Create a Supabase Edge Function or Database Function with admin privileges
+   * 2. Call that function from here
+   * 3. Or handle account deletion through your backend/admin panel
+   */
+  async deleteAccount(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      // Delete user data from all tables
+      // Note: These should cascade based on RLS policies
+      const tablesToClean = [
+        'game_sessions',
+        'transactions',
+        'power_ups_inventory',
+        'cosmetics_owned',
+        'user_settings',
+        'analytics_events',
+        'profiles',
+      ];
+
+      let deletionErrors: string[] = [];
+
+      for (const table of tablesToClean) {
+        try {
+          // Determine the correct column name for each table
+          // profiles uses 'id', all others use 'user_id'
+          const idColumn = table === 'profiles' ? 'id' : 'user_id';
+          
+          const { error } = await supabase
+            .from(table)
+            .delete()
+            .eq(idColumn, user.id);
+
+          if (error) {
+            console.warn(`Warning: Failed to delete from ${table}:`, error);
+            deletionErrors.push(`${table}: ${error.message}`);
+          }
+        } catch (tableError: any) {
+          console.warn(`Error deleting from ${table}:`, tableError);
+          deletionErrors.push(`${table}: ${tableError.message}`);
+        }
+      }
+
+      // Clear guest ID from AsyncStorage if this was a guest account
+      const isAnonymous = user.is_anonymous || user.user_metadata?.is_anonymous;
+      if (isAnonymous) {
+        try {
+          await AsyncStorage.removeItem(GUEST_USER_KEY);
+          console.log('✅ Cleared guest ID from storage');
+        } catch (storageError) {
+          console.warn('Failed to clear guest ID from storage:', storageError);
+        }
+      }
+
+      // Sign out the user (we can't delete auth user from client)
+      await this.signOut();
+
+      if (deletionErrors.length > 0) {
+        console.warn('Some data deletion failed:', deletionErrors);
+        return {
+          success: true,
+          error: `Account data deleted, but some errors occurred: ${deletionErrors.join(', ')}. Note: Auth user deletion requires admin privileges.`,
+        };
+      }
+
+      console.log('✅ Account data deleted successfully');
+      return {
+        success: true,
+        error: 'Account data deleted. Note: Auth user deletion requires admin privileges via Edge Function or backend.',
+      };
+    } catch (error: any) {
+      console.error('Account deletion error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to delete account',
+      };
+    }
+  }
+
+  /**
+   * Check if current user is anonymous
+   */
+  async isAnonymousUser(): Promise<boolean> {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return false;
+      
+      return user.is_anonymous || user.user_metadata?.is_anonymous || false;
+    } catch {
+      return false;
+    }
   }
 }
 

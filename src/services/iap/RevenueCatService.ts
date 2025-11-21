@@ -33,7 +33,7 @@ class RevenueCatService {
    */
   async initialize(userId: string): Promise<void> {
     if (this.initialized) {
-      console.log('RevenueCat already initialized');
+      // Already initialized
       return;
     }
 
@@ -65,7 +65,7 @@ class RevenueCatService {
       this.offerings = await Purchases.getOfferings();
       
       this.initialized = true;
-      console.log('✅ RevenueCat initialized');
+      // Logging handled by app initialization
       console.log(`Available offerings: ${Object.keys(this.offerings.all).length}`);
     } catch (error) {
       console.error('❌ Failed to initialize RevenueCat:', error);

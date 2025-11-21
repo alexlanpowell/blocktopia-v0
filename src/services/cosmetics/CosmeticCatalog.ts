@@ -277,8 +277,19 @@ export const PARTICLE_EFFECTS: Cosmetic[] = [
   },
 ];
 
-// Music Packs (future implementation)
+// Music Packs
 export const MUSIC_PACKS: Cosmetic[] = [
+  {
+    id: 'ambient',
+    type: CosmeticType.MUSIC_PACK,
+    name: 'Ambient',
+    description: 'Calm background music',
+    price: 800,
+    isPremium: false,
+    isDefault: false,
+    rarity: 'epic',
+    preview: '🎵',
+  },
   {
     id: 'none',
     type: CosmeticType.MUSIC_PACK,
@@ -286,20 +297,20 @@ export const MUSIC_PACKS: Cosmetic[] = [
     description: 'No background music',
     price: 0,
     isPremium: false,
-    isDefault: true,
+    isDefault: false,
     rarity: 'common',
     preview: '🔇',
   },
   {
-    id: 'lo-fi',
+    id: 'default-saloon',
     type: CosmeticType.MUSIC_PACK,
-    name: 'Lo-Fi Beats',
-    description: 'Chill study music',
-    price: 800,
+    name: 'Default Saloon',
+    description: 'Old-timey honky-tonk piano (Default)',
+    price: 0,
     isPremium: false,
-    isDefault: false,
-    rarity: 'epic',
-    preview: '🎵',
+    isDefault: true,
+    rarity: 'common',
+    preview: '🎹',
   },
   {
     id: 'electronic',

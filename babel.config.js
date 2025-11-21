@@ -11,8 +11,7 @@ module.exports = function (api) {
         allowUndefined: true,
       }],
       'react-native-reanimated/plugin',
-      // Required for expo-router
-      'expo-router/babel',
+      // expo-router is already included in babel-preset-expo (SDK 50+)
     ],
   };
 };

@@ -56,11 +56,15 @@ export function CustomizationScreen({ visible, onClose }: CustomizationScreenPro
     try {
       setPurchasing(cosmetic.id);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const AudioManager = (await import('../../services/audio/AudioManager')).default;
+      const { SoundEffect } = await import('../../services/audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
 
       const result = await cosmeticService.purchaseCosmetic(cosmetic.id);
 
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        AudioManager.playSoundEffect(SoundEffect.PURCHASE_SUCCESS);
         Alert.alert('Success!', `${cosmetic.name} unlocked!`);
         
         // Auto-equip
@@ -84,10 +88,14 @@ export function CustomizationScreen({ visible, onClose }: CustomizationScreenPro
 
   const handleEquip = async (cosmetic: Cosmetic) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const AudioManager = (await import('../../services/audio/AudioManager')).default;
+    const { SoundEffect } = await import('../../services/audio/AudioManager');
+    AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
     
     const result = await cosmeticService.equipCosmetic(cosmetic.id);
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
     }
   };
 

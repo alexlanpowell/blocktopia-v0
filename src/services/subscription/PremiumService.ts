@@ -76,7 +76,7 @@ class PremiumService {
       // Immediate check
       await this.checkDailyRewards();
 
-      console.log('✅ PremiumService initialized');
+      // Logging handled by app initialization
     } catch (error) {
       console.error('PremiumService initialization error:', error);
     }

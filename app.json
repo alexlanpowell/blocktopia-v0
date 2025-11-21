@@ -18,7 +18,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.blocktopia.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library to upload your profile avatar.",
+        "NSCameraUsageDescription": "We need access to your camera to take a photo for your profile avatar."
       }
     },
     "android": {
@@ -28,7 +30,12 @@
       },
       "package": "com.blocktopia.app",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,12 +50,20 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "We need access to your photos to upload your profile avatar.",
+          "cameraPermission": "We need access to your camera to take a photo for your profile avatar."
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+          "androidAppId": "ca-app-pub-3088920444099039~8901432260",
+          "iosAppId": "ca-app-pub-3088920444099039~9002215056"
         }
-      ]
+      ],
+      "expo-av"
     ],
     "extra": {
       "eas": {

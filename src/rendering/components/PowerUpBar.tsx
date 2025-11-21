@@ -44,6 +44,9 @@ export function PowerUpBar() {
     try {
       setActivating(type);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const AudioManager = (await import('../../services/audio/AudioManager')).default;
+      const { SoundEffect } = await import('../../services/audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
 
       const result = await usePowerUp(type);
 
@@ -172,7 +175,9 @@ function PowerUpButton({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 120 : 100,
+    // Adjusted for new HUD height: TopBar + ScoreRow
+    // Position PowerUpBar just below HUD with small gap
+    top: Platform.OS === 'ios' ? 164 : 156,
     left: 0,
     right: 0,
     zIndex: 5,

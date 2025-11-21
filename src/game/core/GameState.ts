@@ -6,7 +6,8 @@
 import { Board } from './Board';
 import { generateRandomPiece } from './Piece';
 import { calculateScore } from '../scoring/ScoreCalculator';
-import { Piece, IGameState } from '../../utils/types';
+import { Piece, IGameState, BoardGrid } from '../../utils/types';
+import AudioManager, { SoundEffect } from '../../services/audio/AudioManager';
 import { GAME_CONFIG } from '../constants';
 
 export class GameState {
@@ -117,6 +118,13 @@ export class GameState {
       if (this.score > this.bestScore) {
         this.bestScore = this.score;
       }
+
+      // Play appropriate sound based on lines cleared
+      if (fullLines.totalLines >= 4) {
+        AudioManager.playSoundEffect(SoundEffect.MULTI_LINE_CLEAR);
+      } else {
+        AudioManager.playSoundEffect(SoundEffect.LINE_CLEAR);
+      }
     }
   }
 
@@ -126,8 +134,10 @@ export class GameState {
   private checkGameOver(): void {
     const canPlace = this.board.canPlaceAnyPiece(this.currentPieces);
 
-    if (!canPlace) {
+    if (!canPlace && !this.isGameOver) {
       this.isGameOver = true;
+      // Play game over sound
+      AudioManager.playSoundEffect(SoundEffect.GAME_OVER);
     }
   }
 
@@ -143,49 +153,54 @@ export class GameState {
   }
 
   /**
-   * Continue after game over (after watching rewarded ad)
-   * Clears 3-5 random rows/columns to give player another chance
+   * Continue after game over (after watching rewarded ad - "Extra Try")
+   * Clears 4 random rows to give player another chance
    */
   continue(): void {
     if (!this.canContinue) {
-      console.warn('Cannot continue - already used');
+      if (__DEV__) {
+        console.warn('Cannot continue - already used');
+      }
       return;
     }
 
-    console.log('Continuing game after rewarded ad...');
+    if (__DEV__) {
+      console.log('Extra Try activated after rewarded ad...');
+    }
 
     // Mark continue as used
     this.canContinue = false;
     this.isGameOver = false;
 
-    // Clear 3-5 random rows or columns to give player space
-    const linesToClear = 3 + Math.floor(Math.random() * 3); // 3-5 lines
-    let linesCleared = 0;
+    // Clear exactly 4 random rows to give player space
+    const rowsToClear = 4;
+    let rowsCleared = 0;
 
-    // Try to clear random rows and columns
-    for (let i = 0; i < linesToClear && linesCleared < linesToClear; i++) {
-      const clearRow = Math.random() > 0.5;
+    // Try to clear 4 random rows
+    const attemptedRows = new Set<number>();
+    
+    while (rowsCleared < rowsToClear && attemptedRows.size < GAME_CONFIG.BOARD_SIZE) {
+      const rowIndex = Math.floor(Math.random() * GAME_CONFIG.BOARD_SIZE);
       
-      if (clearRow) {
-        // Clear a random row
-        const rowIndex = Math.floor(Math.random() * GAME_CONFIG.BOARD_SIZE);
-        if (this.board.hasFilledCells(rowIndex, true)) {
-          this.board.clearRow(rowIndex);
-          linesCleared++;
-        }
-      } else {
-        // Clear a random column
-        const colIndex = Math.floor(Math.random() * GAME_CONFIG.BOARD_SIZE);
-        if (this.board.hasFilledCells(colIndex, false)) {
-          this.board.clearColumn(colIndex);
-          linesCleared++;
-        }
+      // Skip if we already tried this row
+      if (attemptedRows.has(rowIndex)) {
+        continue;
+      }
+      
+      attemptedRows.add(rowIndex);
+      
+      // Clear the row if it has any filled cells
+      if (this.board.hasFilledCells(rowIndex, true)) {
+        this.board.clearRow(rowIndex);
+        rowsCleared++;
       }
     }
 
-    console.log(`Cleared ${linesCleared} lines for continue`);
+    if (__DEV__) {
+      console.log(`Extra Try: Cleared ${rowsCleared} rows`);
+    }
     
-    // Don't award points for continue clears
+    // Don't award points for extra try clears
     // Check if game is still playable
     this.checkGameOver();
   }
@@ -208,10 +223,32 @@ export class GameState {
    * Get piece at index
    */
   getPiece(index: number): Piece | null {
-    if (index >= 0 && index < this.currentPieces.length) {
-      return this.currentPieces[index];
-    }
-    return null;
+      try {
+        if (!this.currentPieces || !Array.isArray(this.currentPieces)) {
+          if (__DEV__) {
+            console.error('currentPieces is not a valid array');
+          }
+          return null;
+        }
+        
+        if (index >= 0 && index < this.currentPieces.length) {
+          const piece = this.currentPieces[index];
+          // Validate piece structure
+          if (piece && piece.structure && Array.isArray(piece.structure)) {
+            return piece;
+          }
+          if (__DEV__) {
+            console.error('Invalid piece at index:', index, piece);
+          }
+          return null;
+        }
+        return null;
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error in getPiece:', error);
+        }
+        return null;
+      }
   }
 
   /**
@@ -230,12 +267,85 @@ export class GameState {
    * Check if a specific piece can be placed anywhere
    */
   canPieceBePlaced(pieceIndex: number): boolean {
-    const piece = this.getPiece(pieceIndex);
-    if (!piece) {
+    try {
+      // Validate board exists
+      if (!this.board) {
+        if (__DEV__) {
+          console.error('Board is null in canPieceBePlaced');
+        }
+        return false;
+      }
+
+      const piece = this.getPiece(pieceIndex);
+      if (!piece) {
+        return false;
+      }
+
+      // Validate piece structure exists
+      if (!piece.structure || !Array.isArray(piece.structure) || piece.structure.length === 0) {
+        if (__DEV__) {
+          console.error('Invalid piece structure:', piece);
+        }
+        return false;
+      }
+
+      return this.board.canPlaceAnyPiece([piece]);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error in canPieceBePlaced:', error);
+      }
       return false;
     }
+  }
 
-    return this.board.canPlaceAnyPiece([piece]);
+  /**
+   * Serialize game state for storage
+   */
+  serialize(): {
+    board: BoardGrid;
+    currentPieces: Piece[];
+    score: number;
+    bestScore: number;
+    isGameOver: boolean;
+    canContinue: boolean;
+    timestamp: number;
+  } {
+    return {
+      board: this.board.getGrid(),
+      currentPieces: this.currentPieces,
+      score: this.score,
+      bestScore: this.bestScore,
+      isGameOver: this.isGameOver,
+      canContinue: this.canContinue,
+      timestamp: Date.now(),
+    };
+  }
+
+  /**
+   * Restore from serialized state
+   */
+  static deserialize(data: {
+    board: BoardGrid;
+    currentPieces: Piece[];
+    score: number;
+    bestScore: number;
+    isGameOver: boolean;
+    canContinue: boolean;
+  }): GameState {
+    const gameState = new GameState(data.bestScore);
+    
+    // Restore board
+    gameState.board.setGrid(data.board);
+    
+    // Restore pieces
+    gameState.currentPieces = data.currentPieces;
+    
+    // Restore score and state
+    gameState.score = data.score;
+    gameState.isGameOver = data.isGameOver;
+    gameState.canContinue = data.canContinue;
+    
+    return gameState;
   }
 }
 

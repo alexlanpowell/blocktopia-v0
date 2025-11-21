@@ -6,7 +6,7 @@
 
 import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { StatusBar, Platform, View, ActivityIndicator } from 'react-native';
+import { StatusBar, Platform, View, ActivityIndicator, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
@@ -19,6 +19,7 @@ import { adManager } from '../src/services/ads/AdManager';
 import { revenueCatService } from '../src/services/iap/RevenueCatService';
 import { premiumService } from '../src/services/subscription/PremiumService';
 import { useMonetizationStore } from '../src/store/monetizationStore';
+import { useGameStore } from '../src/store/gameStore';
 import { validateConfig } from '../src/services/backend/config';
 import { remoteConfig } from '../src/services/config/RemoteConfigService';
 
@@ -27,6 +28,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const setUser = useMonetizationStore(state => state.setUser);
   const loadFromBackend = useMonetizationStore(state => state.loadFromBackend);
+  const loadHighScore = useGameStore(state => state.loadHighScore);
+  const syncHighScore = useGameStore(state => state.syncHighScore);
 
   useEffect(() => {
     initializeApp();
@@ -35,60 +38,158 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   const initializeApp = async () => {
     try {
       performanceMonitor.startMeasure('app_initialization');
-      console.log('🚀 Initializing Blocktopia monetization system...');
+      
+      if (__DEV__) {
+        console.log('🚀 Initializing Blocktopia...');
+      }
 
       // Validate configuration
       const configValidation = validateConfig();
-      if (!configValidation.valid) {
-        console.warn('⚠️ Missing config:', configValidation.missing);
-        // Don't block app for missing optional configs
+      if (!configValidation.valid && __DEV__) {
+        console.warn('⚠️ Missing optional config:', configValidation.missing);
       }
+
+      // Initialize core services in parallel where possible
+      const initPromises: Promise<void>[] = [];
 
       // Initialize Supabase
       supabaseManager.initialize();
-      console.log('✅ Supabase initialized');
 
       // Initialize Auth Service
-      await authService.initialize();
-      console.log('✅ Auth service initialized');
+      initPromises.push(authService.initialize());
 
       // Initialize Analytics
-      await analyticsService.initialize();
-      console.log('✅ Analytics initialized');
+      initPromises.push(analyticsService.initialize());
 
       // Initialize Remote Config
-      await remoteConfig.initialize();
-      console.log('✅ Remote Config initialized');
+      initPromises.push(remoteConfig.initialize());
 
-      // Initialize Ad Manager
-      try {
-        await adManager.initialize();
-        console.log('✅ AdMob initialized');
-      } catch (error) {
-        console.warn('⚠️ AdMob initialization failed (non-blocking):', error);
-        // Non-blocking - app can continue without ads
-      }
+      // Initialize Audio Settings Storage (load from MMKV)
+      const { audioSettingsStorage } = await import('../src/services/audio/AudioSettingsStorage');
+      await audioSettingsStorage.loadSettings();
+
+      // Initialize Audio Manager (preload SFX)
+      const AudioManager = (await import('../src/services/audio/AudioManager')).default;
+      initPromises.push(
+        AudioManager.initialize().catch((error) => {
+          if (__DEV__) {
+            console.warn('Audio initialization failed:', error);
+          }
+          // Non-critical, continue app launch
+        })
+      );
+
+      // Initialize Ad Manager (non-blocking)
+      initPromises.push(
+        adManager.initialize().catch((error) => {
+          // Silent fail - non-critical for app startup
+        })
+      );
+
+      // Wait for core services
+      await Promise.all(initPromises);
 
       // Check for existing session
       const session = await supabaseManager.getSession();
       if (session) {
-        console.log('✅ Found existing session');
         const profile = await authService.getUserProfile();
         setUser(profile);
+        
+        // Check if user is anonymous
+        const isAnonymous = await authService.isAnonymousUser();
+        useMonetizationStore.getState().setAnonymous(isAnonymous);
+        
         await loadFromBackend();
 
-        // Initialize RevenueCat with user ID
+        // Load persistent high score
+        const userId = profile?.id || null;
+        await loadHighScore(userId);
+        // Retry sync if there was an unsynced score
+        await syncHighScore(userId);
+
+        // Start default background music if enabled
+        const { audioSettingsStorage } = await import('../src/services/audio/AudioSettingsStorage');
+        const AudioManager = (await import('../src/services/audio/AudioManager')).default;
+        const { MusicTrack } = await import('../src/services/audio/AudioManager');
+        
+        if (audioSettingsStorage.isMusicEnabled()) {
+          const currentPack = audioSettingsStorage.getCurrentMusicPack();
+          const musicTrackMap: Record<string, any> = {
+            'none': MusicTrack.NONE,
+            'ambient': MusicTrack.AMBIENT,
+            'default-saloon': MusicTrack.DEFAULT_SALOON,
+            'electronic': MusicTrack.ELECTRONIC,
+          };
+          const track = musicTrackMap[currentPack] || MusicTrack.DEFAULT_SALOON;
+          
+          AudioManager.playMusic(track).catch((err: any) => {
+            if (__DEV__) console.warn('Failed to start music:', err);
+          });
+        }
+
+        // Initialize RevenueCat with user ID (non-blocking)
         if (profile?.id) {
           try {
             await revenueCatService.initialize(profile.id);
-            console.log('✅ RevenueCat initialized');
-            
-            // Initialize Premium Service
             await premiumService.initialize();
-            console.log('✅ PremiumService initialized');
           } catch (error) {
-            console.warn('⚠️ RevenueCat initialization failed (non-blocking):', error);
+            // Silent fail - non-critical for app startup
           }
+        }
+      } else {
+        // No existing session - auto-create anonymous account for tracking
+        if (__DEV__) {
+          console.log('🔄 Creating anonymous account...');
+        }
+        try {
+          const anonymousResult = await authService.signInAnonymously();
+          if (anonymousResult.success && anonymousResult.user) {
+            const profile = await authService.getUserProfile();
+            setUser(profile);
+            
+            // Mark as anonymous
+            useMonetizationStore.getState().setAnonymous(true);
+            
+            await loadFromBackend();
+            
+            // Load persistent high score
+            const userId = profile?.id || null;
+            await loadHighScore(userId);
+            
+            // Mark as first launch for welcome message
+            useMonetizationStore.getState().setFirstLaunch(true);
+            
+            // Start default background music if enabled
+            const { audioSettingsStorage } = await import('../src/services/audio/AudioSettingsStorage');
+            const AudioManager = (await import('../src/services/audio/AudioManager')).default;
+            const { MusicTrack } = await import('../src/services/audio/AudioManager');
+            
+            if (audioSettingsStorage.isMusicEnabled()) {
+              const currentPack = audioSettingsStorage.getCurrentMusicPack();
+              const musicTrackMap: Record<string, any> = {
+                'none': MusicTrack.NONE,
+                'ambient': MusicTrack.AMBIENT,
+                'default-saloon': MusicTrack.DEFAULT_SALOON,
+                'electronic': MusicTrack.ELECTRONIC,
+              };
+              const track = musicTrackMap[currentPack] || MusicTrack.DEFAULT_SALOON;
+              
+              AudioManager.playMusic(track).catch((err: any) => {
+                if (__DEV__) console.warn('Failed to start music:', err);
+              });
+            }
+            
+            // Initialize RevenueCat with anonymous user ID (non-blocking)
+            if (profile?.id) {
+              try {
+                await revenueCatService.initialize(profile.id);
+              } catch (error) {
+                // Silent fail
+              }
+            }
+          }
+        } catch (error) {
+          // Continue anyway - app can work without account (offline mode)
         }
       }
 
@@ -97,6 +198,11 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         if (user) {
           const profile = await authService.getUserProfile();
           setUser(profile);
+          
+          // Check if user is anonymous
+          const isAnonymous = await authService.isAnonymousUser();
+          useMonetizationStore.getState().setAnonymous(isAnonymous);
+          
           await loadFromBackend();
           analyticsService.logSignIn('session_restore');
 
@@ -105,7 +211,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             try {
               await revenueCatService.initialize(profile.id);
             } catch (error) {
-              console.warn('RevenueCat init failed:', error);
+              // Silent fail
             }
           }
         } else {
@@ -113,13 +219,17 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         }
       });
 
-      console.log('✅ App initialization complete');
-      
       // Start analytics session
       enhancedAnalytics.startSession();
       
       // End performance measurement
-      performanceMonitor.endMeasure('app_initialization');
+      const initTime = performanceMonitor.endMeasure('app_initialization');
+      
+      if (__DEV__ && initTime !== null) {
+        console.log(`✅ App initialized (${initTime}ms)`);
+      } else if (__DEV__) {
+        console.log('✅ App initialized');
+      }
     } catch (err: any) {
       console.error('❌ App initialization error:', err);
       setError(err.message);
@@ -128,6 +238,35 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
       setInitializing(false);
     }
   };
+
+  // Handle app state changes (background/foreground)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      const AudioManager = (await import('../src/services/audio/AudioManager')).default;
+      
+      if (nextAppState === 'background') {
+        // Pause music when app goes to background
+        AudioManager.pauseMusic();
+      } else if (nextAppState === 'active') {
+        // Resume music when app comes back to foreground
+        AudioManager.resumeMusic();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup audio resources
+      import('../src/services/audio/AudioManager').then(({ default: AudioManager }) => {
+        AudioManager.cleanup();
+      });
+    };
+  }, []);
 
   if (initializing) {
     return (
@@ -165,6 +304,14 @@ export default function RootLayout() {
             >
               <Stack.Screen name="index" />
               <Stack.Screen name="game" />
+              <Stack.Screen 
+                name="settings"
+                options={{
+                  presentation: Platform.OS === 'ios' ? 'modal' : 'card',
+                }}
+              />
+              <Stack.Screen name="privacy" />
+              <Stack.Screen name="terms" />
             </Stack>
           </AppInitializer>
         </GestureHandlerRootView>

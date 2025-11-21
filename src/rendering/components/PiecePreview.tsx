@@ -7,7 +7,7 @@ import React, { useMemo, memo } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { Canvas, RoundedRect, Group, LinearGradient as SkiaLinearGradient, vec } from '@shopify/react-native-skia';
 import { BlurView } from 'expo-blur';
-import { useCurrentPieces, useGameStore } from '../../store/gameStore';
+import { useCurrentPieces, useGameStore, useDragState } from '../../store/gameStore';
 import { Piece } from '../../utils/types';
 import { GAME_CONFIG } from '../../game/constants';
 import { COLORS, SHADOWS, BORDER_RADIUS } from '../../utils/theme';
@@ -22,9 +22,10 @@ interface SinglePiecePreviewProps {
   piece: Piece;
   index: number;
   canBePlaced: boolean;
+  isBeingDragged: boolean;
 }
 
-const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canBePlaced }: SinglePiecePreviewProps) {
+const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canBePlaced, isBeingDragged }: SinglePiecePreviewProps) {
   const pieceCells = useMemo(() => {
     const cells: React.ReactElement[] = [];
 
@@ -44,6 +45,9 @@ const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canB
     // Get gradient colors for this piece
     const gradientColors = COLORS.pieces[piece.id % COLORS.pieces.length];
 
+    // Calculate opacity: dim if can't be placed, very dim if being dragged
+    const opacity = isBeingDragged ? 0.2 : (canBePlaced ? 1 : 0.4);
+
     // Render each cell of the piece with gradient
     for (const cell of piece.structure) {
       const cellX = offsetX + (cell.x - minX) * (CELL_SIZE + CELL_GAP);
@@ -57,7 +61,7 @@ const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canB
             width={CELL_SIZE}
             height={CELL_SIZE}
             r={6}
-            opacity={canBePlaced ? 1 : 0.4}
+            opacity={opacity}
           >
             <SkiaLinearGradient
               start={vec(0, 0)}
@@ -70,7 +74,7 @@ const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canB
     }
 
     return cells;
-  }, [piece, index, canBePlaced]);
+  }, [piece, index, canBePlaced, isBeingDragged]);
 
   return (
     <View style={styles.pieceContainer}>
@@ -84,18 +88,21 @@ const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canB
 export const PiecePreview = memo(function PiecePreview() {
   const currentPieces = useCurrentPieces();
   const canPieceBePlaced = useGameStore(state => state.canPieceBePlaced);
+  const dragState = useDragState();
 
   return (
     <BlurView intensity={20} tint="dark" style={styles.container}>
       <View style={styles.innerContainer}>
         {currentPieces.map((piece, index) => {
           const canPlace = canPieceBePlaced(index);
+          const isBeingDragged = dragState.isDragging && dragState.draggedPieceIndex === index;
           return (
             <SinglePiecePreview
               key={`piece-preview-${index}-${piece.id}`}
               piece={piece}
               index={index}
               canBePlaced={canPlace}
+              isBeingDragged={isBeingDragged}
             />
           );
         })}

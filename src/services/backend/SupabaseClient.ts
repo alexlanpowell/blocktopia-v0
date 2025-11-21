@@ -62,9 +62,35 @@ class SupabaseManager {
     const supabaseAnonKey = ENV_CONFIG.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(
-        'Supabase URL and Anon Key must be set in environment variables'
-      );
+      console.warn('⚠️ Supabase not configured (missing environment variables) - running in offline mode');
+      console.warn('  Missing keys:', {
+        SUPABASE_URL: !supabaseUrl ? 'MISSING' : 'OK',
+        SUPABASE_ANON_KEY: !supabaseAnonKey ? 'MISSING' : 'OK',
+      });
+      console.warn('  Add these to your .env file to enable Supabase features');
+      console.warn('  App will continue in offline mode - auth and database features will not work');
+      // Return a mock client or handle this gracefully depending on usage.
+      // For now, we'll return a minimal mock that won't crash but won't work for auth/db.
+      // This allows the app to start even without env vars.
+      
+      // Create a dummy client that warns on usage
+      const mockClient = {
+        auth: {
+          getSession: async () => ({ data: { session: null }, error: null }),
+          getUser: async () => ({ data: { user: null }, error: null }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        },
+        from: () => ({
+          select: () => ({ data: [], error: null }),
+          insert: () => ({ data: [], error: null }),
+          update: () => ({ data: [], error: null }),
+          delete: () => ({ data: [], error: null }),
+        }),
+      } as unknown as SupabaseClient;
+      
+      this.client = mockClient;
+      this.initialized = true;
+      return this.client;
     }
 
     this.client = createClient(supabaseUrl, supabaseAnonKey, {
@@ -77,7 +103,7 @@ class SupabaseManager {
     });
 
     this.initialized = true;
-    console.log('✅ Supabase client initialized');
+    // Logging handled by app initialization
 
     return this.client;
   }

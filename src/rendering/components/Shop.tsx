@@ -46,11 +46,17 @@ export function Shop({ visible, onClose }: ShopProps) {
       setLoading(true);
       setPurchasingId(product.id);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const AudioManager = (await import('../../services/audio/AudioManager')).default;
+      const { SoundEffect } = await import('../../services/audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
 
       const result = await purchaseManager.purchaseGemPack(product.id);
 
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const AudioManager = (await import('../../services/audio/AudioManager')).default;
+        const { SoundEffect } = await import('../../services/audio/AudioManager');
+        AudioManager.playSoundEffect(SoundEffect.PURCHASE_SUCCESS);
       } else if (result.error !== 'cancelled') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
@@ -69,6 +75,9 @@ export function Shop({ visible, onClose }: ShopProps) {
     try {
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const AudioManager = (await import('../../services/audio/AudioManager')).default;
+      const { SoundEffect } = await import('../../services/audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
       
       await purchaseManager.restorePurchases();
       
@@ -87,11 +96,17 @@ export function Shop({ visible, onClose }: ShopProps) {
       setLoading(true);
       setPurchasingPowerUp(type);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const AudioManager = (await import('../../services/audio/AudioManager')).default;
+      const { SoundEffect } = await import('../../services/audio/AudioManager');
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
 
       const result = await powerUpService.purchaseWithGems(type, quantity);
 
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const AudioManager = (await import('../../services/audio/AudioManager')).default;
+        const { SoundEffect } = await import('../../services/audio/AudioManager');
+        AudioManager.playSoundEffect(SoundEffect.PURCHASE_SUCCESS);
         Alert.alert('Success!', `Purchased ${quantity}x ${POWER_UPS[type].name}!`);
       } else {
         if (result.error === 'insufficient_gems') {
@@ -430,6 +445,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.subtitle,
     fontSize: 24,
     marginBottom: SPACING.sm,
+    color: COLORS.ui.text, // Explicitly set white color for visibility
   },
   sectionSubtitle: {
     ...TYPOGRAPHY.body,

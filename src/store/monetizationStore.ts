@@ -47,6 +47,7 @@ interface UserState {
   email: string | null;
   username: string | null;
   avatar_url: string | null;
+  bio: string | null;
   isAuthenticated: boolean;
   isAnonymous: boolean;
 }
@@ -94,10 +95,12 @@ interface MonetizationStore {
   
   // Initialization
   initialized: boolean;
+  firstLaunch: boolean;
   
   // Actions - User
   setUser: (profile: UserProfile | null) => void;
   setAnonymous: (isAnonymous: boolean) => void;
+  setFirstLaunch: (isFirstLaunch: boolean) => void;
   
   // Actions - Currency
   addGems: (amount: number) => void;
@@ -141,6 +144,7 @@ const initialUserState: UserState = {
   email: null,
   username: null,
   avatar_url: null,
+  bio: null,
   isAuthenticated: false,
   isAnonymous: false,
 };
@@ -189,6 +193,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
     ownedCosmetics: ['default'], // Default cosmetics are always owned
     activeCosmetics: initialActiveCosmetics,
     initialized: false,
+    firstLaunch: false,
 
     // User Actions
     setUser: (profile: UserProfile | null) => {
@@ -199,6 +204,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
             email: profile.email,
             username: profile.username,
             avatar_url: profile.avatar_url,
+            bio: profile.bio,
             isAuthenticated: true,
             isAnonymous: state.user.isAnonymous,
           };
@@ -216,6 +222,12 @@ export const useMonetizationStore = create<MonetizationStore>()(
     setAnonymous: (isAnonymous: boolean) => {
       set(state => {
         state.user.isAnonymous = isAnonymous;
+      });
+    },
+
+    setFirstLaunch: (isFirstLaunch: boolean) => {
+      set(state => {
+        state.firstLaunch = isFirstLaunch;
       });
     },
 
@@ -410,6 +422,10 @@ export const useMonetizationStore = create<MonetizationStore>()(
           .upsert(powerUpUpdates);
 
         // Sync active cosmetics and daily rewards
+        // Import audio settings storage dynamically to avoid circular dependency
+        const { audioSettingsStorage } = await import('../services/audio/AudioSettingsStorage');
+        const audioSettings = audioSettingsStorage.getSettings();
+
         await supabase
           .from('user_settings')
           .update({
@@ -421,6 +437,10 @@ export const useMonetizationStore = create<MonetizationStore>()(
             last_daily_gems_claim: get().dailyReward.lastClaimedGems,
             last_daily_powerups_claim: get().dailyReward.lastClaimedPowerUps,
             daily_reward_streak: get().dailyReward.streak,
+            music_volume: audioSettings.musicVolume,
+            sfx_volume: audioSettings.sfxVolume,
+            music_enabled: audioSettings.musicEnabled,
+            sfx_enabled: audioSettings.sfxEnabled,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', user.userId);
@@ -485,6 +505,18 @@ export const useMonetizationStore = create<MonetizationStore>()(
             state.dailyReward.lastClaimedPowerUps = settings.last_daily_powerups_claim;
             state.dailyReward.streak = settings.daily_reward_streak || 0;
           });
+
+          // Load audio settings (non-blocking)
+          const { audioSettingsStorage } = await import('../services/audio/AudioSettingsStorage');
+          if (settings.music_volume !== null || settings.sfx_volume !== null || 
+              settings.music_enabled !== null || settings.sfx_enabled !== null) {
+            await audioSettingsStorage.saveSettings({
+              musicVolume: settings.music_volume ?? undefined,
+              sfxVolume: settings.sfx_volume ?? undefined,
+              musicEnabled: settings.music_enabled ?? undefined,
+              sfxEnabled: settings.sfx_enabled ?? undefined,
+            });
+          }
         }
 
         set(state => {
@@ -510,6 +542,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
         ownedCosmetics: ['default'],
         activeCosmetics: initialActiveCosmetics,
         initialized: false,
+        firstLaunch: false,
       });
     },
   }))

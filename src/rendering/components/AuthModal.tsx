@@ -1,6 +1,6 @@
 /**
  * Authentication Modal
- * Handles user sign-in with Apple, Google, or Anonymous
+ * Handles user authentication via Email/Password or Anonymous Guest
  */
 
 import React, { useState } from 'react';
@@ -11,11 +11,10 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as AppleAuthentication from 'expo-apple-authentication';
+import { router } from 'expo-router';
 import { authService } from '../../services/auth/AuthService';
 import { useMonetizationStore } from '../../store/monetizationStore';
 import { COLORS } from '../../utils/theme';
@@ -39,33 +38,18 @@ export function AuthModal({
   const setAnonymous = useMonetizationStore(state => state.setAnonymous);
   const loadFromBackend = useMonetizationStore(state => state.loadFromBackend);
 
-  const handleSignIn = async (provider: 'apple' | 'google' | 'anonymous') => {
+  const handleAnonymousSignIn = async () => {
     setLoading(true);
-    setLoadingProvider(provider);
+    setLoadingProvider('anonymous');
 
     try {
-      let result;
-      
-      switch (provider) {
-        case 'apple':
-          result = await authService.signInWithApple();
-          break;
-        case 'google':
-          result = await authService.signInWithGoogle();
-          break;
-        case 'anonymous':
-          result = await authService.signInAnonymously();
-          break;
-      }
+      const result = await authService.signInAnonymously();
 
       if (result.success && result.user) {
         // Update store
         const profile = await authService.getUserProfile();
         setUser(profile);
-        
-        if (provider === 'anonymous') {
-          setAnonymous(true);
-        }
+        setAnonymous(true);
 
         // Load user data from backend
         await loadFromBackend();
@@ -129,44 +113,40 @@ export function AuthModal({
 
             {/* Sign-In Buttons */}
             <View style={styles.buttons}>
-              {/* Apple Sign-In */}
-              {Platform.OS === 'ios' && !loading && (
-                <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-                  cornerRadius={12}
-                  style={styles.appleButton}
-                  onPress={() => handleSignIn('apple')}
-                />
-              )}
-              {Platform.OS === 'ios' && loading && loadingProvider === 'apple' && (
-                <View style={[styles.appleButton, styles.button, { backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' }]}>
-                  <ActivityIndicator color="#000" />
-                </View>
-              )}
-
-              {/* Google Sign-In */}
+              {/* Email/Password Sign-In */}
               <TouchableOpacity
                 style={[
                   styles.button,
-                  styles.googleButton,
+                  styles.emailButton,
                   loading && styles.buttonDisabled,
                 ]}
-                onPress={() => handleSignIn('google')}
+                onPress={() => {
+                  onClose();
+                  router.push('/auth/login');
+                }}
                 disabled={loading}
               >
-                {loadingProvider === 'google' ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <>
-                    <View style={styles.googleIcon}>
-                      <Text style={styles.googleIconText}>G</Text>
-                    </View>
-                    <Text style={styles.googleButtonText}>
-                      Continue with Google
-                    </Text>
-                  </>
-                )}
+                <Text style={styles.emailButtonText}>
+                  Sign in with Email
+                </Text>
+              </TouchableOpacity>
+
+              {/* Create Account */}
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  styles.createAccountButton,
+                  loading && styles.buttonDisabled,
+                ]}
+                onPress={() => {
+                  onClose();
+                  router.push('/auth/signup');
+                }}
+                disabled={loading}
+              >
+                <Text style={styles.createAccountButtonText}>
+                  Create Account
+                </Text>
               </TouchableOpacity>
 
               {/* Anonymous Sign-In */}
@@ -177,7 +157,7 @@ export function AuthModal({
                     styles.anonymousButton,
                     loading && styles.buttonDisabled,
                   ]}
-                  onPress={() => handleSignIn('anonymous')}
+                  onPress={handleAnonymousSignIn}
                   disabled={loading}
                 >
                   {loadingProvider === 'anonymous' ? (
@@ -275,9 +255,6 @@ const styles = StyleSheet.create({
   buttons: {
     gap: 12,
   },
-  appleButton: {
-    height: 54,
-  },
   button: {
     height: 54,
     borderRadius: 12,
@@ -286,28 +263,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  googleButton: {
-    backgroundColor: '#FFF',
-  },
-  googleIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  googleIconText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  googleButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   anonymousButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
@@ -315,6 +270,26 @@ const styles = StyleSheet.create({
   },
   anonymousButtonText: {
     color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emailButton: {
+    backgroundColor: COLORS.primary.cyan,
+    borderWidth: 1,
+    borderColor: COLORS.primary.cyanGlow,
+  },
+  emailButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  createAccountButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: COLORS.primary.purple,
+  },
+  createAccountButtonText: {
+    color: COLORS.primary.purple,
     fontSize: 16,
     fontWeight: '600',
   },

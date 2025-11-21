@@ -45,32 +45,59 @@ export const GameBoard = memo(function GameBoard() {
 
         // Check if this cell should be highlighted (drag preview)
         let highlightColor = null;
+        let previewGradient = null;
         if (
           dragState.isDragging &&
-          dragState.targetPosition &&
-          dragState.draggedPiece &&
-          isEmpty
+          dragState.draggedPiece
         ) {
-          // Check if this cell is part of the drag preview
-          const targetX = dragState.targetPosition.x;
-          const targetY = dragState.targetPosition.y;
+          // Show preview at target position if available, otherwise show at current drag position
+          if (dragState.targetPosition) {
+            const targetX = dragState.targetPosition.x;
+            const targetY = dragState.targetPosition.y;
 
-          for (const cell of dragState.draggedPiece.structure) {
-            const previewX = targetX + cell.x;
-            const previewY = targetY + cell.y;
+            for (const cell of dragState.draggedPiece.structure) {
+              const previewX = targetX + cell.x;
+              const previewY = targetY + cell.y;
 
-            if (previewX === x && previewY === y) {
-              // Show green highlight if can place, red if cannot
-              highlightColor = dragState.canPlace ? COLORS.accent.success : COLORS.accent.error;
-              cellOpacity = 0.6;
-              break;
+              if (previewX === x && previewY === y && isEmpty) {
+                // Show preview with gradient if can place, red highlight if cannot
+                if (dragState.canPlace) {
+                  // Use piece gradient with reduced opacity for preview
+                  previewGradient = COLORS.pieces[dragState.draggedPiece.id % COLORS.pieces.length];
+                  cellOpacity = 0.7;
+                } else {
+                  // Show red highlight for invalid placement
+                  highlightColor = COLORS.accent.error;
+                  cellOpacity = 0.5;
+                }
+                break;
+              }
             }
           }
         }
 
         // Render cell with gradient or solid color
-        if (highlightColor) {
-          // Highlight cell
+        if (previewGradient) {
+          // Drag preview with piece gradient (valid placement)
+          cells.push(
+            <RoundedRect
+              key={`cell-${x}-${y}`}
+              x={cellX}
+              y={cellY}
+              width={CELL_SIZE}
+              height={CELL_SIZE}
+              r={6}
+              opacity={cellOpacity}
+            >
+              <SkiaLinearGradient
+                start={vec(0, 0)}
+                end={vec(CELL_SIZE, CELL_SIZE)}
+                colors={[previewGradient.start, previewGradient.end]}
+              />
+            </RoundedRect>
+          );
+        } else if (highlightColor) {
+          // Invalid placement highlight
           cells.push(
             <RoundedRect
               key={`cell-${x}-${y}`}
