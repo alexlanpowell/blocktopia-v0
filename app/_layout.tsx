@@ -15,7 +15,7 @@ import { authService } from '../src/services/auth/AuthService';
 import { analyticsService } from '../src/services/analytics/AnalyticsService';
 import { enhancedAnalytics } from '../src/services/analytics/EnhancedAnalyticsService';
 import { performanceMonitor } from '../src/utils/PerformanceMonitor';
-import { adManager } from '../src/services/ads/AdManager';
+// DON'T import adManager here - lazy load it to prevent Google Mobile Ads native module crash
 import { revenueCatService } from '../src/services/iap/RevenueCatService';
 import { premiumService } from '../src/services/subscription/PremiumService';
 import { useMonetizationStore } from '../src/store/monetizationStore';
@@ -79,11 +79,19 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         })
       );
 
-      // Initialize Ad Manager (non-blocking)
+      // Initialize Ad Manager (non-blocking, lazy loaded to prevent native module crash)
       initPromises.push(
-        adManager.initialize().catch((error) => {
-          // Silent fail - non-critical for app startup
-        })
+        (async () => {
+          try {
+            const { adManager } = await import('../src/services/ads/AdManager');
+            await adManager.initialize();
+          } catch (error) {
+            // Silent fail - non-critical for app startup
+            if (__DEV__) {
+              console.warn('Ad Manager initialization failed:', error);
+            }
+          }
+        })()
       );
 
       // Wait for core services
