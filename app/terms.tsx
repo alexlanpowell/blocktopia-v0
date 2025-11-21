@@ -37,7 +37,7 @@ export default function TermsOfServiceScreen() {
         {/* Content */}
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            <Text style={styles.lastUpdated}>Last Updated: November 19, 2025</Text>
+            <Text style={styles.lastUpdated}>Last Updated: November 21, 2025</Text>
 
             <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
             <Text style={styles.paragraph}>
@@ -90,39 +90,58 @@ export default function TermsOfServiceScreen() {
               by international copyright, trademark, and other intellectual property laws.
             </Text>
 
-            <Text style={styles.sectionTitle}>8. Termination</Text>
+            <Text style={styles.sectionTitle}>8. Third-Party Content & Attributions</Text>
+            <Text style={styles.paragraph}>
+              Blocktopia includes audio content licensed from third parties:
+            </Text>
+            <Text style={styles.bulletPoint}>
+              • Background Music: "Olde Timey" by Kevin MacLeod (incompetech.com){'\n'}
+              {'  '}Licensed under Creative Commons: By Attribution 4.0 License{'\n'}
+              {'  '}http://creativecommons.org/licenses/by/4.0/
+            </Text>
+            <Text style={styles.bulletPoint}>
+              • Sound Effects: Mixkit (mixkit.co){'\n'}
+              {'  '}Licensed under Mixkit Sound Effects Free License{'\n'}
+              {'  '}https://mixkit.co/license/#sfxFree
+            </Text>
+            <Text style={styles.paragraph}>
+              These materials are the property of their respective owners. We do not claim ownership
+              of third-party content and comply with all licensing requirements.
+            </Text>
+
+            <Text style={styles.sectionTitle}>9. Termination</Text>
             <Text style={styles.paragraph}>
               We may terminate or suspend your account immediately, without prior notice, for
               conduct that we believe violates these Terms of Service or is harmful to other
               users, us, or third parties.
             </Text>
 
-            <Text style={styles.sectionTitle}>9. Disclaimers</Text>
+            <Text style={styles.sectionTitle}>10. Disclaimers</Text>
             <Text style={styles.paragraph}>
               Blocktopia is provided "as is" without warranties of any kind. We do not guarantee
               that the app will be error-free, secure, or always available.
             </Text>
 
-            <Text style={styles.sectionTitle}>10. Limitation of Liability</Text>
+            <Text style={styles.sectionTitle}>11. Limitation of Liability</Text>
             <Text style={styles.paragraph}>
               We shall not be liable for any indirect, incidental, special, consequential, or
               punitive damages resulting from your use or inability to use the app.
             </Text>
 
-            <Text style={styles.sectionTitle}>11. Changes to Terms</Text>
+            <Text style={styles.sectionTitle}>12. Changes to Terms</Text>
             <Text style={styles.paragraph}>
               We reserve the right to modify these terms at any time. We will notify users of
               any material changes. Continued use after changes constitutes acceptance of the
               new terms.
             </Text>
 
-            <Text style={styles.sectionTitle}>12. Governing Law</Text>
+            <Text style={styles.sectionTitle}>13. Governing Law</Text>
             <Text style={styles.paragraph}>
               These terms shall be governed by and construed in accordance with applicable laws,
               without regard to conflict of law principles.
             </Text>
 
-            <Text style={styles.sectionTitle}>13. Contact Information</Text>
+            <Text style={styles.sectionTitle}>14. Contact Information</Text>
             <Text style={styles.paragraph}>
               For questions about these Terms of Service, please contact us at:
             </Text>

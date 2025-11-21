@@ -37,7 +37,7 @@ export default function PrivacyPolicyScreen() {
         {/* Content */}
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
-            <Text style={styles.lastUpdated}>Last Updated: November 19, 2025</Text>
+            <Text style={styles.lastUpdated}>Last Updated: November 21, 2025</Text>
 
             <Text style={styles.sectionTitle}>1. Introduction</Text>
             <Text style={styles.paragraph}>
@@ -80,13 +80,28 @@ export default function PrivacyPolicyScreen() {
             <Text style={styles.bulletPoint}>• Google Sign-In</Text>
             <Text style={styles.bulletPoint}>• Apple Sign-In</Text>
 
-            <Text style={styles.sectionTitle}>6. Children's Privacy</Text>
+            <Text style={styles.sectionTitle}>6. Third-Party Content</Text>
+            <Text style={styles.paragraph}>
+              This app includes audio content from third-party creators:
+            </Text>
+            <Text style={styles.bulletPoint}>
+              • Background Music: "Olde Timey" by Kevin MacLeod (incompetech.com){'\n'}
+              {'  '}Licensed under Creative Commons: By Attribution 4.0{'\n'}
+              {'  '}http://creativecommons.org/licenses/by/4.0/
+            </Text>
+            <Text style={styles.bulletPoint}>
+              • Sound Effects: Mixkit.co (mixkit.co){'\n'}
+              {'  '}Licensed under Mixkit Sound Effects Free License{'\n'}
+              {'  '}https://mixkit.co/license/#sfxFree
+            </Text>
+
+            <Text style={styles.sectionTitle}>7. Children's Privacy</Text>
             <Text style={styles.paragraph}>
               Our service is not directed to children under 13. We do not knowingly collect
               personal information from children under 13.
             </Text>
 
-            <Text style={styles.sectionTitle}>7. Your Rights</Text>
+            <Text style={styles.sectionTitle}>8. Your Rights</Text>
             <Text style={styles.paragraph}>
               You have the right to:
             </Text>
@@ -95,13 +110,13 @@ export default function PrivacyPolicyScreen() {
             <Text style={styles.bulletPoint}>• Opt-out of marketing communications</Text>
             <Text style={styles.bulletPoint}>• Request data portability</Text>
 
-            <Text style={styles.sectionTitle}>8. Changes to This Policy</Text>
+            <Text style={styles.sectionTitle}>9. Changes to This Policy</Text>
             <Text style={styles.paragraph}>
               We may update this Privacy Policy from time to time. We will notify you of any
               changes by posting the new Privacy Policy on this page.
             </Text>
 
-            <Text style={styles.sectionTitle}>9. Contact Us</Text>
+            <Text style={styles.sectionTitle}>10. Contact Us</Text>
             <Text style={styles.paragraph}>
               If you have questions about this Privacy Policy, please contact us at:
             </Text>

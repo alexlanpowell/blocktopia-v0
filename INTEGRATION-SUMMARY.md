@@ -27,6 +27,10 @@
 - ✅ `QUICK-START-TESTING-SOUNDS.md` - Testing instructions
 - ✅ `INTEGRATION-SUMMARY.md` - This file
 
+### Legal Documents Updated
+- ✅ `app/privacy.tsx` - Added Section 6: Third-Party Content (audio attributions)
+- ✅ `app/terms.tsx` - Added Section 8: Third-Party Content & Attributions
+
 ---
 
 ## 🔧 Changes Made
