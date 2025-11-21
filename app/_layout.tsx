@@ -15,9 +15,10 @@ import { authService } from '../src/services/auth/AuthService';
 import { analyticsService } from '../src/services/analytics/AnalyticsService';
 import { enhancedAnalytics } from '../src/services/analytics/EnhancedAnalyticsService';
 import { performanceMonitor } from '../src/utils/PerformanceMonitor';
-// DON'T import adManager here - lazy load it to prevent Google Mobile Ads native module crash
-import { revenueCatService } from '../src/services/iap/RevenueCatService';
-import { premiumService } from '../src/services/subscription/PremiumService';
+// DON'T import native modules here - lazy load to prevent crashes before React Native is ready:
+// - adManager (Google Mobile Ads)
+// - revenueCatService (RevenueCat)
+// - premiumService (uses RevenueCat)
 import { useMonetizationStore } from '../src/store/monetizationStore';
 import { useGameStore } from '../src/store/gameStore';
 import { validateConfig } from '../src/services/backend/config';
@@ -135,13 +136,20 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           });
         }
 
-        // Initialize RevenueCat with user ID (non-blocking)
+        // Initialize RevenueCat with user ID (non-blocking, lazy-loaded)
         if (profile?.id) {
           try {
+            const [{ revenueCatService }, { premiumService }] = await Promise.all([
+              import('../src/services/iap/RevenueCatService'),
+              import('../src/services/subscription/PremiumService'),
+            ]);
             await revenueCatService.initialize(profile.id);
             await premiumService.initialize();
           } catch (error) {
             // Silent fail - non-critical for app startup
+            if (__DEV__) {
+              console.warn('RevenueCat initialization failed:', error);
+            }
           }
         }
       } else {
@@ -187,12 +195,16 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
               });
             }
             
-            // Initialize RevenueCat with anonymous user ID (non-blocking)
+            // Initialize RevenueCat with anonymous user ID (non-blocking, lazy-loaded)
             if (profile?.id) {
               try {
+                const { revenueCatService } = await import('../src/services/iap/RevenueCatService');
                 await revenueCatService.initialize(profile.id);
               } catch (error) {
                 // Silent fail
+                if (__DEV__) {
+                  console.warn('RevenueCat initialization failed (anonymous):', error);
+                }
               }
             }
           }
@@ -214,12 +226,18 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           await loadFromBackend();
           analyticsService.logSignIn('session_restore');
 
-          // Initialize/update RevenueCat for logged in user
-          if (profile?.id && !revenueCatService.isInitialized()) {
+          // Initialize/update RevenueCat for logged in user (lazy-loaded)
+          if (profile?.id) {
             try {
-              await revenueCatService.initialize(profile.id);
+              const { revenueCatService } = await import('../src/services/iap/RevenueCatService');
+              if (!revenueCatService.isInitialized()) {
+                await revenueCatService.initialize(profile.id);
+              }
             } catch (error) {
               // Silent fail
+              if (__DEV__) {
+                console.warn('RevenueCat initialization failed (logged in):', error);
+              }
             }
           }
         } else {
