@@ -14,7 +14,7 @@ import { useUser, useGems, useIsPremium, useMonetizationStore } from '../src/sto
 import { useGameStore } from '../src/store/gameStore';
 import { GamePersistenceService } from '../src/services/game/GamePersistenceService';
 import { AuthModal } from '../src/rendering/components/AuthModal';
-import { Shop } from '../src/rendering/components/Shop';
+// DON'T import Shop here - lazy load to prevent PurchaseManager -> RevenueCat eager import crash
 import { CustomizationScreen } from '../src/rendering/screens/CustomizationScreen';
 import { AdminDashboard } from '../src/rendering/screens/AdminDashboard';
 import { WelcomeToast } from '../src/rendering/components/WelcomeToast';
@@ -35,6 +35,7 @@ export default function IndexScreen() {
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [hasActiveGame, setHasActiveGame] = useState(false);
   const [isCheckingGame, setIsCheckingGame] = useState(true);
+  const [ShopComponent, setShopComponent] = useState<any>(null);
   
   const restartGame = useGameStore(state => state.restartGame);
   const loadGameState = useGameStore(state => state.gameState);
@@ -58,6 +59,19 @@ export default function IndexScreen() {
     
     checkActiveGame();
   }, []);
+
+  // Lazy load Shop component to prevent RevenueCat crash
+  useEffect(() => {
+    if (showShop && !ShopComponent) {
+      import('../src/rendering/components/Shop').then(module => {
+        setShopComponent(() => module.Shop);
+      }).catch(error => {
+        if (__DEV__) {
+          console.error('Failed to load Shop component:', error);
+        }
+      });
+    }
+  }, [showShop, ShopComponent]);
 
   // Show welcome toast on first launch
   useEffect(() => {
@@ -304,11 +318,13 @@ export default function IndexScreen() {
         allowAnonymous={true}
       />
 
-      {/* Shop Modal */}
-      <Shop
-        visible={showShop}
-        onClose={() => setShowShop(false)}
-      />
+      {/* Shop Modal - Lazy loaded to prevent RevenueCat crash */}
+      {ShopComponent && (
+        <ShopComponent
+          visible={showShop}
+          onClose={() => setShowShop(false)}
+        />
+      )}
 
       {/* Customization Modal */}
       <CustomizationScreen

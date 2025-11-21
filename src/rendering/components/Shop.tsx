@@ -20,10 +20,10 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SHADOWS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../utils/theme';
 import { useGems, useIsPremium, useUser, usePowerUps, PowerUpType } from '../../store/monetizationStore';
-import { purchaseManager } from '../../services/iap/PurchaseManager';
+// DON'T import purchaseManager, premiumService at top level - they import RevenueCat which crashes
 import { getGemPacks, getTotalGems, getSubscriptions, type Product } from '../../services/iap/ProductCatalog';
 import { powerUpService, POWER_UPS } from '../../services/powerups/PowerUpService';
-import { premiumService, PremiumBenefit } from '../../services/subscription/PremiumService';
+import { type PremiumBenefit } from '../../services/subscription/PremiumService';
 
 interface ShopProps {
   visible: boolean;
@@ -50,6 +50,8 @@ export function Shop({ visible, onClose }: ShopProps) {
       const { SoundEffect } = await import('../../services/audio/AudioManager');
       AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
 
+      // Lazy-load purchaseManager to prevent RevenueCat crash
+      const { purchaseManager } = await import('../../services/iap/PurchaseManager');
       const result = await purchaseManager.purchaseGemPack(product.id);
 
       if (result.success) {
@@ -79,6 +81,8 @@ export function Shop({ visible, onClose }: ShopProps) {
       const { SoundEffect } = await import('../../services/audio/AudioManager');
       AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
       
+      // Lazy-load purchaseManager to prevent RevenueCat crash
+      const { purchaseManager } = await import('../../services/iap/PurchaseManager');
       await purchaseManager.restorePurchases();
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -136,6 +140,8 @@ export function Shop({ visible, onClose }: ShopProps) {
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       
+      // Lazy-load purchaseManager to prevent RevenueCat crash
+      const { purchaseManager } = await import('../../services/iap/PurchaseManager');
       const result = await purchaseManager.purchaseSubscription(productId);
       
       if (result.success) {
