@@ -12,8 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useScore, useBestScore, useIsGameOver, useGameStore } from '../../store/gameStore';
 import { useMonetizationStore } from '../../store/monetizationStore';
-import { rewardedAdService } from '../../services/ads/RewardedAdService';
-import { interstitialAdService } from '../../services/ads/InterstitialAdService';
+// DON'T import ad services here - lazy load to prevent Google Mobile Ads native module crash
 import { COLORS, SHADOWS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../utils/theme';
 import AudioManager, { SoundEffect } from '../../services/audio/AudioManager';
 
@@ -60,6 +59,9 @@ export const HUD = memo(function HUD() {
     
     // Show interstitial ad before restarting (for free users)
     try {
+      // Lazy-load ad service to prevent native module crash
+      const { interstitialAdService } = await import('../../services/ads/InterstitialAdService');
+      
       // Increment game count for ad frequency tracking
       interstitialAdService.incrementGameCount();
       
@@ -96,6 +98,9 @@ export const HUD = memo(function HUD() {
     setIsLoadingAd(true);
     
     try {
+      // Lazy-load ad service to prevent native module crash
+      const { rewardedAdService } = await import('../../services/ads/RewardedAdService');
+      
       const result = await rewardedAdService.show();
       
       if (result.watched) {
