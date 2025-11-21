@@ -10,7 +10,7 @@ module.exports = {
     name: "Blocktopia",
     slug: "blocktopia",
     owner: "turntopia",
-    version: "1.0.14",
+    version: "1.0.15",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -74,8 +74,11 @@ module.exports = {
       // These are read from process.env during build (EAS injects them)
       SUPABASE_URL: process.env.SUPABASE_URL || '',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
-      REVENUECAT_API_KEY_IOS: process.env.REVENUECAT_API_KEY_IOS || '',
-      REVENUECAT_API_KEY_ANDROID: process.env.REVENUECAT_API_KEY_ANDROID || '',
+      // TEMPORARILY DISABLED FOR TESTING - Testing if RevenueCat causes native crash
+      // REVENUECAT_API_KEY_IOS: process.env.REVENUECAT_API_KEY_IOS || '',
+      // REVENUECAT_API_KEY_ANDROID: process.env.REVENUECAT_API_KEY_ANDROID || '',
+      REVENUECAT_API_KEY_IOS: '',
+      REVENUECAT_API_KEY_ANDROID: '',
       ADMOB_APP_ID_IOS: process.env.ADMOB_APP_ID_IOS || '',
       ADMOB_APP_ID_ANDROID: process.env.ADMOB_APP_ID_ANDROID || '',
       ADMOB_REWARDED_AD_UNIT_IOS: process.env.ADMOB_REWARDED_AD_UNIT_IOS || '',
