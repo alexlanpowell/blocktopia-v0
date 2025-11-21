@@ -8,8 +8,28 @@ import { MMKV } from 'react-native-mmkv';
 import { GameState } from '../../game/core/GameState';
 import { BoardGrid, Piece } from '../../utils/types';
 
-// Create MMKV instance for game state storage
-const storage = new MMKV({ id: 'game-state' });
+// Lazy-initialized MMKV instance for game state storage
+let storageInstance: MMKV | null = null;
+
+/**
+ * Get or create MMKV storage instance
+ * Returns null if MMKV is not available
+ */
+function getStorage(): MMKV | null {
+  if (storageInstance) {
+    return storageInstance;
+  }
+
+  try {
+    storageInstance = new MMKV({ id: 'game-state' });
+    return storageInstance;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[GamePersistenceService] MMKV not available:', error);
+    }
+    return null;
+  }
+}
 
 const STORAGE_KEYS = {
   ACTIVE_GAME: 'blocktopia_active_game',
@@ -33,6 +53,16 @@ export class GamePersistenceService {
    */
   static async saveGameState(gameState: GameState): Promise<void> {
     try {
+      const storage = getStorage();
+      
+      // If MMKV not available, skip local save (non-critical)
+      if (!storage) {
+        if (__DEV__) {
+          console.warn('[GamePersistence] MMKV unavailable, game state not saved locally');
+        }
+        return;
+      }
+
       const serialized = this.serializeGameState(gameState);
       
       // Save to MMKV (fast, synchronous)
@@ -56,6 +86,13 @@ export class GamePersistenceService {
    */
   static async loadGameState(): Promise<SerializedGameState | null> {
     try {
+      const storage = getStorage();
+      
+      // If MMKV not available, return null
+      if (!storage) {
+        return null;
+      }
+
       const stateJson = storage.getString(STORAGE_KEYS.GAME_STATE);
       
       if (!stateJson) {
@@ -86,6 +123,13 @@ export class GamePersistenceService {
    */
   static async hasActiveGame(): Promise<boolean> {
     try {
+      const storage = getStorage();
+      
+      // If MMKV not available, no active game
+      if (!storage) {
+        return false;
+      }
+
       const hasActive = storage.getBoolean(STORAGE_KEYS.ACTIVE_GAME) ?? false;
       
       if (!hasActive) {
@@ -108,6 +152,13 @@ export class GamePersistenceService {
    */
   static async clearSavedGame(): Promise<void> {
     try {
+      const storage = getStorage();
+      
+      // If MMKV not available, nothing to clear
+      if (!storage) {
+        return;
+      }
+
       storage.delete(STORAGE_KEYS.GAME_STATE);
       storage.set(STORAGE_KEYS.ACTIVE_GAME, false);
       storage.delete(STORAGE_KEYS.LAST_SAVE);

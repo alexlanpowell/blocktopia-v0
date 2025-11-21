@@ -21,6 +21,8 @@ declare module '@env' {
   export const ADMOB_INTERSTITIAL_AD_UNIT_ANDROID: string;
   export const ADMOB_BANNER_AD_UNIT_IOS: string;
   export const ADMOB_BANNER_AD_UNIT_ANDROID: string;
+  export const ADMOB_BANNER_AD_UNIT_HOME_IOS: string;
+  export const ADMOB_BANNER_AD_UNIT_HOME_ANDROID: string;
   
   // Google Sign-In Configuration
   export const GOOGLE_CLIENT_ID_IOS: string;

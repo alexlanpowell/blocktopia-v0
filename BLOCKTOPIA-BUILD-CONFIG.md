@@ -275,6 +275,188 @@ For complete troubleshooting guide, see: **`BLOCKTOPIA_EAS_BUILD_GUIDE.md`**
 
 ---
 
+## 🛡️ Native Module & Database Lessons (November 20, 2025)
+
+### ⚠️ MMKV Native Module Initialization Issue
+
+**Problem:** App crashed on iOS with "Cannot read property 'prototype' of undefined"
+
+**Root Cause:**
+- MMKV (`react-native-mmkv@4.0.1`) is a native C++ module
+- Services were using **eager initialization** - instantiating MMKV in constructor
+- Constructor runs when module imported (before native modules ready)
+- Result: Crash on iOS, app wouldn't start
+
+**Broken Pattern (DO NOT USE):**
+```typescript
+class MyService {
+  private storage = new MMKV({ id: 'my-storage' }); // ❌ BAD: Runs immediately!
+}
+```
+
+**Fixed Pattern (USE THIS):**
+```typescript
+class MyService {
+  private storage: MMKV | null = null; // Lazy initialization
+  
+  private getStorage(): MMKV | null {
+    if (this.storage) return this.storage;
+    
+    try {
+      this.storage = new MMKV({ id: 'my-storage' });
+      return this.storage;
+    } catch (error) {
+      console.warn('[MyService] MMKV not available:', error);
+      return null; // Graceful degradation
+    }
+  }
+}
+```
+
+**Key Lessons:**
+1. ✅ **Always use lazy initialization for native modules**
+2. ✅ **Wrap in try-catch for graceful degradation**
+3. ✅ **Return null if native module unavailable**
+4. ✅ **App can still function without native module (degraded mode)**
+
+**Files Fixed:**
+- `src/services/audio/AudioSettingsStorage.ts`
+- `src/services/game/GamePersistenceService.ts`
+- `src/services/scoring/HighScoreService.ts`
+
+**Why This Still Requires Rebuild:**
+- Lazy init helps app start without crashing
+- But MMKV native framework still needs to be compiled into iOS build
+- EAS rebuild with `expo prebuild` properly links MMKV native module
+
+---
+
+### 🗄️ Database Schema Drift Issue
+
+**Problem:** Cloud sync failed with "PGRST204: Could not find the 'updated_at' column"
+
+**Root Cause:**
+- Base schema (`supabase-schema.sql`) created `game_sessions` table WITHOUT `updated_at`
+- Migration (`supabase-game-sessions-migration.sql`) USED `updated_at` without adding it
+- Schema got out of sync between base and migrations
+
+**Solution:**
+```sql
+-- Add missing column with proper defaults and triggers
+ALTER TABLE public.game_sessions 
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- Backfill existing rows
+UPDATE public.game_sessions SET updated_at = created_at WHERE updated_at IS NULL;
+
+-- Auto-update trigger
+CREATE TRIGGER update_game_sessions_timestamp
+BEFORE UPDATE ON public.game_sessions
+FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+```
+
+**Key Lessons:**
+1. ✅ **Always add column before using it in code**
+2. ✅ **Include IF NOT EXISTS for idempotency**
+3. ✅ **Backfill existing data**
+4. ✅ **Add triggers for auto-updates**
+5. ✅ **Test migrations on staging first**
+
+**Files Created:**
+- `supabase-game-sessions-add-updated-at.sql`
+
+---
+
+### 🏗️ Local-First Architecture Benefits
+
+**Pattern:** MMKV (local) + Supabase (cloud backup)
+
+**Why This is Resilient:**
+
+1. **Offline-First:**
+   - Game saves locally (synchronous, fast)
+   - Cloud sync happens in background (async, non-blocking)
+   - App works even if internet down
+
+2. **Graceful Degradation:**
+   - If MMKV unavailable → Use in-memory state (single session)
+   - If Supabase down → Local saves still work
+   - If both fail → Game still playable (just no persistence)
+
+3. **Performance:**
+   - Local saves are instant (MMKV is synchronous)
+   - No waiting for network requests
+   - User never blocked by slow cloud
+
+**Implementation Example:**
+```typescript
+static async saveGameState(gameState: GameState): Promise<void> {
+  const storage = getStorage(); // Try to get MMKV
+  
+  if (storage) {
+    // Fast local save (synchronous)
+    storage.set('game_state', JSON.stringify(gameState));
+  } else {
+    console.warn('Local storage unavailable, using memory only');
+  }
+  
+  // Background cloud sync (async, non-blocking)
+  this.syncToCloud(gameState).catch(err => {
+    console.warn('Cloud sync failed (non-critical):', err);
+  });
+}
+```
+
+---
+
+### 🎯 Critical Build & Runtime Checklist
+
+**Before EAS Build:**
+- [ ] All native modules in `app.json` plugins array
+- [ ] Database migrations run in Supabase
+- [ ] All code committed to git
+- [ ] TypeScript compiles: `npx tsc --noEmit`
+- [ ] Test with: `npm ci --include=dev`
+
+**After iOS Build:**
+- [ ] Console shows no "MMKV not available" errors
+- [ ] Console shows no "PGRST204" database errors
+- [ ] Game state persists across app restarts
+- [ ] High scores save correctly
+- [ ] Settings persist
+
+**Native Module Requirements:**
+- ✅ `expo-av` → Requires native module (audio/video)
+- ✅ `react-native-mmkv` → Requires native module (storage)
+- ✅ `expo-haptics` → Requires native module (vibration)
+- ✅ `@react-native-google-mobile-ads` → Requires native module (ads)
+- ✅ All must be in `app.json` plugins or explicitly linked
+
+**When to Rebuild:**
+- ✅ Adding new native module
+- ✅ Changing native module version
+- ✅ Updating `app.json` plugins
+- ✅ After expo prebuild changes
+- ❌ NOT needed for: Hot reload fixes (like lazy init code)
+
+---
+
+### 📚 Additional Documentation Created
+
+**Implementation Guides:**
+- `FIX-IMPLEMENTATION-GUIDE.md` - Step-by-step fix walkthrough
+- `REBUILD-AND-TEST-COMMANDS.md` - Complete command reference
+- `COMPREHENSIVE-TEST-PLAN.md` - 18 test cases
+
+**Technical Documentation:**
+- `MMKV-INITIALIZATION-FIX.md` - Lazy init explanation
+- `MMKV-DATABASE-FIX-COMPLETE.md` - Complete fix documentation
+
+**SQL Migrations:**
+- `supabase-game-sessions-add-updated-at.sql` - Database schema fix
+
+---
+
 ## 🎉 Ready for EAS Build
 
 Your Blocktopia app now has the **exact same proven configuration** as your working Unmap app. 

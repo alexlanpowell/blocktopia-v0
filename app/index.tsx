@@ -18,6 +18,7 @@ import { Shop } from '../src/rendering/components/Shop';
 import { CustomizationScreen } from '../src/rendering/screens/CustomizationScreen';
 import { AdminDashboard } from '../src/rendering/screens/AdminDashboard';
 import { WelcomeToast } from '../src/rendering/components/WelcomeToast';
+import { HomeBannerAd } from '../src/rendering/components/BannerAd';
 
 export default function IndexScreen() {
   const insets = useSafeAreaInsets();
@@ -320,6 +321,9 @@ export default function IndexScreen() {
         visible={showAdmin}
         onClose={() => setShowAdmin(false)}
       />
+
+      {/* Home Screen Banner Ad */}
+      <HomeBannerAd />
     </View>
   );
 }

@@ -76,6 +76,65 @@ export const GameBannerAd = memo(function GameBannerAd() {
   );
 });
 
+/**
+ * HomeBannerAd Component
+ * Displays a banner ad at the bottom of the home screen
+ * Respects safe areas, premium users, and follows UI/UX best practices
+ */
+export const HomeBannerAd = memo(function HomeBannerAd() {
+  const insets = useSafeAreaInsets();
+  const isPremium = useMonetizationStore(state => state.isPremium);
+  const adFreePurchased = useMonetizationStore(state => state.adState.adFreePurchased);
+
+  const handleAdLoaded = useCallback(() => {
+    if (__DEV__) {
+      console.log('✅ Home banner ad loaded successfully');
+    }
+    bannerAdService.logImpression('home');
+  }, []);
+
+  const handleAdFailedToLoad = useCallback((error: Error) => {
+    if (__DEV__) {
+      console.warn('⚠️ Home banner ad failed to load:', error.message);
+    }
+    bannerAdService.logLoadError(error, 'home');
+  }, []);
+
+  const handleAdOpened = useCallback(() => {
+    if (__DEV__) {
+      console.log('👆 Home banner ad opened');
+    }
+    bannerAdService.logClick('home');
+  }, []);
+
+  // Don't show banner for premium or ad-free users
+  if (isPremium || adFreePurchased || !bannerAdService.shouldShowBanner()) {
+    return null;
+  }
+
+  return (
+    <View 
+      style={[
+        styles.homeContainer,
+        { paddingBottom: insets.bottom }
+      ]}
+      accessible={false}
+      pointerEvents="box-none"
+    >
+      <BannerAd
+        unitId={bannerAdService.getAdUnitId('home')}
+        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        requestOptions={{
+          requestNonPersonalizedAdsOnly: false,
+        }}
+        onAdLoaded={handleAdLoaded}
+        onAdFailedToLoad={handleAdFailedToLoad}
+        onAdOpened={handleAdOpened}
+      />
+    </View>
+  );
+});
+
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
@@ -86,6 +145,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     zIndex: 5, // Above game board, below HUD and power-ups
     // Minimum height for adaptive banner (will expand if needed)
+    minHeight: 50,
+  },
+  homeContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    zIndex: 10, // Above most UI elements
     minHeight: 50,
   },
 });

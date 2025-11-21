@@ -27,12 +27,32 @@ const DEFAULT_SETTINGS: AudioSettings = {
 
 class AudioSettingsStorage {
   private static instance: AudioSettingsStorage;
-  private storage: MMKV;
+  private storage: MMKV | null = null;
   private syncDebounceTimer: NodeJS.Timeout | null = null;
   private readonly SYNC_DEBOUNCE_MS = 500;
 
   private constructor() {
-    this.storage = new MMKV({ id: 'audio-settings' });
+    // Don't initialize MMKV here - lazy init when first needed
+  }
+
+  /**
+   * Lazy initialization of MMKV storage
+   * Returns null if MMKV is not available
+   */
+  private getStorage(): MMKV | null {
+    if (this.storage) {
+      return this.storage;
+    }
+
+    try {
+      this.storage = new MMKV({ id: 'audio-settings' });
+      return this.storage;
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[AudioSettingsStorage] MMKV not available:', error);
+      }
+      return null;
+    }
   }
 
   static getInstance(): AudioSettingsStorage {
@@ -46,13 +66,23 @@ class AudioSettingsStorage {
    * Load settings from MMKV and apply to AudioManager
    */
   async loadSettings(): Promise<AudioSettings> {
+    const storage = this.getStorage();
+    
+    // If MMKV not available, return defaults
+    if (!storage) {
+      if (__DEV__) {
+        console.warn('[AudioSettingsStorage] MMKV unavailable, using default settings');
+      }
+      return DEFAULT_SETTINGS;
+    }
+
     const settings: AudioSettings = {
-      musicVolume: this.storage.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume,
-      sfxVolume: this.storage.getNumber('sfx_volume') ?? DEFAULT_SETTINGS.sfxVolume,
-      musicEnabled: this.storage.getBoolean('music_enabled') ?? DEFAULT_SETTINGS.musicEnabled,
-      sfxEnabled: this.storage.getBoolean('sfx_enabled') ?? DEFAULT_SETTINGS.sfxEnabled,
+      musicVolume: storage.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume,
+      sfxVolume: storage.getNumber('sfx_volume') ?? DEFAULT_SETTINGS.sfxVolume,
+      musicEnabled: storage.getBoolean('music_enabled') ?? DEFAULT_SETTINGS.musicEnabled,
+      sfxEnabled: storage.getBoolean('sfx_enabled') ?? DEFAULT_SETTINGS.sfxEnabled,
       currentMusicPack:
-        this.storage.getString('current_music_pack') ?? DEFAULT_SETTINGS.currentMusicPack,
+        storage.getString('current_music_pack') ?? DEFAULT_SETTINGS.currentMusicPack,
     };
 
     // Apply to AudioManager
@@ -75,29 +105,52 @@ class AudioSettingsStorage {
    * Save settings to MMKV and sync to Supabase
    */
   async saveSettings(settings: Partial<AudioSettings>): Promise<void> {
+    const storage = this.getStorage();
+    
+    // If MMKV not available, still update AudioManager in-memory
+    if (!storage) {
+      if (__DEV__) {
+        console.warn('[AudioSettingsStorage] MMKV unavailable, settings not persisted');
+      }
+      // Still apply to AudioManager (in-memory only)
+      if (settings.musicVolume !== undefined) {
+        AudioManager.setMusicVolume(settings.musicVolume);
+      }
+      if (settings.sfxVolume !== undefined) {
+        AudioManager.setSfxVolume(settings.sfxVolume);
+      }
+      if (settings.musicEnabled !== undefined) {
+        AudioManager.setMusicEnabled(settings.musicEnabled);
+      }
+      if (settings.sfxEnabled !== undefined) {
+        AudioManager.setSfxEnabled(settings.sfxEnabled);
+      }
+      return;
+    }
+
     // Save to MMKV (synchronous, instant)
     if (settings.musicVolume !== undefined) {
-      this.storage.set('music_volume', settings.musicVolume);
+      storage.set('music_volume', settings.musicVolume);
       AudioManager.setMusicVolume(settings.musicVolume);
     }
 
     if (settings.sfxVolume !== undefined) {
-      this.storage.set('sfx_volume', settings.sfxVolume);
+      storage.set('sfx_volume', settings.sfxVolume);
       AudioManager.setSfxVolume(settings.sfxVolume);
     }
 
     if (settings.musicEnabled !== undefined) {
-      this.storage.set('music_enabled', settings.musicEnabled);
+      storage.set('music_enabled', settings.musicEnabled);
       AudioManager.setMusicEnabled(settings.musicEnabled);
     }
 
     if (settings.sfxEnabled !== undefined) {
-      this.storage.set('sfx_enabled', settings.sfxEnabled);
+      storage.set('sfx_enabled', settings.sfxEnabled);
       AudioManager.setSfxEnabled(settings.sfxEnabled);
     }
 
     if (settings.currentMusicPack !== undefined) {
-      this.storage.set('current_music_pack', settings.currentMusicPack);
+      storage.set('current_music_pack', settings.currentMusicPack);
     }
 
     // Debounced sync to Supabase
@@ -108,13 +161,19 @@ class AudioSettingsStorage {
    * Get current settings from MMKV
    */
   getSettings(): AudioSettings {
+    const storage = this.getStorage();
+    
+    if (!storage) {
+      return DEFAULT_SETTINGS;
+    }
+
     return {
-      musicVolume: this.storage.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume,
-      sfxVolume: this.storage.getNumber('sfx_volume') ?? DEFAULT_SETTINGS.sfxVolume,
-      musicEnabled: this.storage.getBoolean('music_enabled') ?? DEFAULT_SETTINGS.musicEnabled,
-      sfxEnabled: this.storage.getBoolean('sfx_enabled') ?? DEFAULT_SETTINGS.sfxEnabled,
+      musicVolume: storage.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume,
+      sfxVolume: storage.getNumber('sfx_volume') ?? DEFAULT_SETTINGS.sfxVolume,
+      musicEnabled: storage.getBoolean('music_enabled') ?? DEFAULT_SETTINGS.musicEnabled,
+      sfxEnabled: storage.getBoolean('sfx_enabled') ?? DEFAULT_SETTINGS.sfxEnabled,
       currentMusicPack:
-        this.storage.getString('current_music_pack') ?? DEFAULT_SETTINGS.currentMusicPack,
+        storage.getString('current_music_pack') ?? DEFAULT_SETTINGS.currentMusicPack,
     };
   }
 
@@ -122,35 +181,40 @@ class AudioSettingsStorage {
    * Get music volume
    */
   getMusicVolume(): number {
-    return this.storage.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume;
+    const storage = this.getStorage();
+    return storage?.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume;
   }
 
   /**
    * Get SFX volume
    */
   getSfxVolume(): number {
-    return this.storage.getNumber('sfx_volume') ?? DEFAULT_SETTINGS.sfxVolume;
+    const storage = this.getStorage();
+    return storage?.getNumber('sfx_volume') ?? DEFAULT_SETTINGS.sfxVolume;
   }
 
   /**
    * Check if music is enabled
    */
   isMusicEnabled(): boolean {
-    return this.storage.getBoolean('music_enabled') ?? DEFAULT_SETTINGS.musicEnabled;
+    const storage = this.getStorage();
+    return storage?.getBoolean('music_enabled') ?? DEFAULT_SETTINGS.musicEnabled;
   }
 
   /**
    * Check if SFX is enabled
    */
   isSfxEnabled(): boolean {
-    return this.storage.getBoolean('sfx_enabled') ?? DEFAULT_SETTINGS.sfxEnabled;
+    const storage = this.getStorage();
+    return storage?.getBoolean('sfx_enabled') ?? DEFAULT_SETTINGS.sfxEnabled;
   }
 
   /**
    * Get current music pack ID
    */
   getCurrentMusicPack(): string {
-    return this.storage.getString('current_music_pack') ?? DEFAULT_SETTINGS.currentMusicPack;
+    const storage = this.getStorage();
+    return storage?.getString('current_music_pack') ?? DEFAULT_SETTINGS.currentMusicPack;
   }
 
   /**

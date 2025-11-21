@@ -19,15 +19,37 @@
       }
     },
     "preview": {
+      "node": "20.18.0",
       "distribution": "internal",
-      "prebuildCommand": "npx expo prebuild --clean"
+      "ios": {
+        "image": "latest",
+        "resourceClass": "m-medium",
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "prebuildCommand": "npx expo prebuild --clean"
+      "node": "20.18.0",
+      "distribution": "store",
+      "ios": {
+        "image": "latest",
+        "resourceClass": "m-medium",
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "turntopia@gmail.com",
+        "appleTeamId": "VBS22V63BX"
+      }
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 /**
- * BannerAdService - Manages banner ads displayed during gameplay
+ * BannerAdService - Manages banner ads displayed in different locations
  * Shows persistent banner at bottom of screen for non-premium users
- * Follows singleton pattern matching existing AdManager architecture
+ * Supports multiple ad placements: game screen and home screen
  */
 
 import {
@@ -12,13 +12,16 @@ import { ENV_CONFIG } from '../backend/config';
 import { adManager } from './AdManager';
 import { analyticsService } from '../analytics/AnalyticsService';
 
+export type BannerLocation = 'game' | 'home';
+
 class BannerAdService {
   private static instance: BannerAdService | null = null;
-  private adUnitId: string;
+  private gameAdUnitId: string;
+  private homeAdUnitId: string;
 
   private constructor() {
-    // Use test IDs in development, real IDs in production
-    this.adUnitId = ENV_CONFIG.isDevelopment
+    // Game banner ad unit (default/backward compatible)
+    this.gameAdUnitId = ENV_CONFIG.isDevelopment
       ? TestIds.BANNER
       : Platform.select({
           ios: ENV_CONFIG.ADMOB_BANNER_AD_UNIT_IOS,
@@ -26,8 +29,19 @@ class BannerAdService {
           default: TestIds.BANNER,
         }) || TestIds.BANNER;
 
+    // Home banner ad unit (separate ad unit for home screen)
+    this.homeAdUnitId = ENV_CONFIG.isDevelopment
+      ? TestIds.BANNER
+      : Platform.select({
+          ios: ENV_CONFIG.ADMOB_BANNER_AD_UNIT_HOME_IOS,
+          android: ENV_CONFIG.ADMOB_BANNER_AD_UNIT_HOME_ANDROID,
+          default: TestIds.BANNER,
+        }) || TestIds.BANNER;
+
     if (__DEV__) {
-      console.log('BannerAdService initialized with unit ID:', this.adUnitId);
+      console.log('BannerAdService initialized');
+      console.log('  Game banner:', this.gameAdUnitId);
+      console.log('  Home banner:', this.homeAdUnitId);
     }
   }
 
@@ -39,11 +53,12 @@ class BannerAdService {
   }
 
   /**
-   * Get ad unit ID for banner
+   * Get ad unit ID for banner at specific location
+   * @param location - Where the banner is displayed ('game' or 'home')
    * @returns Ad unit ID string
    */
-  getAdUnitId(): string {
-    return this.adUnitId;
+  getAdUnitId(location: BannerLocation = 'game'): string {
+    return location === 'home' ? this.homeAdUnitId : this.gameAdUnitId;
   }
 
   /**
@@ -57,12 +72,13 @@ class BannerAdService {
 
   /**
    * Log banner impression for analytics
+   * @param location - Where the banner is displayed
    */
-  logImpression(): void {
+  logImpression(location: BannerLocation = 'game'): void {
     try {
       analyticsService.logEvent('banner_ad_shown', {
-        placement: 'game_screen',
-        ad_unit_id: this.adUnitId,
+        placement: `${location}_screen`,
+        ad_unit_id: this.getAdUnitId(location),
       });
     } catch (error) {
       if (__DEV__) {
@@ -73,12 +89,13 @@ class BannerAdService {
 
   /**
    * Log banner click for analytics
+   * @param location - Where the banner is displayed
    */
-  logClick(): void {
+  logClick(location: BannerLocation = 'game'): void {
     try {
       analyticsService.logEvent('banner_ad_clicked', {
-        placement: 'game_screen',
-        ad_unit_id: this.adUnitId,
+        placement: `${location}_screen`,
+        ad_unit_id: this.getAdUnitId(location),
       });
     } catch (error) {
       if (__DEV__) {
@@ -90,11 +107,12 @@ class BannerAdService {
   /**
    * Log banner ad load failure
    * @param error - Error that occurred during ad load
+   * @param location - Where the banner is displayed
    */
-  logLoadError(error: unknown): void {
+  logLoadError(error: unknown, location: BannerLocation = 'game'): void {
     try {
       analyticsService.logEvent('banner_ad_load_failed', {
-        placement: 'game_screen',
+        placement: `${location}_screen`,
         error: error instanceof Error ? error.message : String(error),
       });
     } catch (logError) {

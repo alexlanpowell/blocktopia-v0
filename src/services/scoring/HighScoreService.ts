@@ -6,8 +6,29 @@
 import { getSupabase } from '../backend/SupabaseClient';
 import { MMKV } from 'react-native-mmkv';
 
-// Create MMKV instance for high scores storage
-const storage = new MMKV({ id: 'highscores' });
+// Lazy-initialized MMKV instance for high scores storage
+let storageInstance: MMKV | null = null;
+
+/**
+ * Get or create MMKV storage instance
+ * Returns null if MMKV is not available
+ */
+function getStorage(): MMKV | null {
+  if (storageInstance) {
+    return storageInstance;
+  }
+
+  try {
+    storageInstance = new MMKV({ id: 'highscores' });
+    return storageInstance;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[HighScoreService] MMKV not available:', error);
+    }
+    return null;
+  }
+}
+
 const HIGH_SCORE_KEY = 'local_high_score';
 const HIGH_SCORE_SYNC_KEY = 'high_score_synced';
 
@@ -32,9 +53,11 @@ export class HighScoreService {
    */
   static async getHighScore(userId: string | null): Promise<number> {
     try {
+      const storage = getStorage();
+      
       // If no user, return local high score only
       if (!userId) {
-        return storage.getNumber(HIGH_SCORE_KEY) || 0;
+        return storage?.getNumber(HIGH_SCORE_KEY) || 0;
       }
 
       // Try to fetch from Supabase
@@ -48,23 +71,25 @@ export class HighScoreService {
       if (error) {
         if (error.code === 'PGRST116') {
           // No record found - return local score
-          return storage.getNumber(HIGH_SCORE_KEY) || 0;
+          return storage?.getNumber(HIGH_SCORE_KEY) || 0;
         }
         if (__DEV__) {
           console.warn('[HighScoreService] Error fetching high score:', error);
         }
         // Fallback to local storage
-        return storage.getNumber(HIGH_SCORE_KEY) || 0;
+        return storage?.getNumber(HIGH_SCORE_KEY) || 0;
       }
 
       const remoteScore = data?.high_score || 0;
-      const localScore = storage.getNumber(HIGH_SCORE_KEY) || 0;
+      const localScore = storage?.getNumber(HIGH_SCORE_KEY) || 0;
 
       // Use the higher of the two
       const bestScore = Math.max(remoteScore, localScore);
 
       // Update local cache
-      storage.set(HIGH_SCORE_KEY, bestScore);
+      if (storage) {
+        storage.set(HIGH_SCORE_KEY, bestScore);
+      }
 
       return bestScore;
     } catch (error) {
@@ -72,7 +97,8 @@ export class HighScoreService {
         console.error('[HighScoreService] Error in getHighScore:', error);
       }
       // Fallback to local storage
-      return storage.getNumber(HIGH_SCORE_KEY) || 0;
+      const storage = getStorage();
+      return storage?.getNumber(HIGH_SCORE_KEY) || 0;
     }
   }
 
@@ -86,7 +112,8 @@ export class HighScoreService {
     stats?: { piecesPlaced?: number; linesCleared?: number }
   ): Promise<boolean> {
     try {
-      const currentHigh = storage.getNumber(HIGH_SCORE_KEY) || 0;
+      const storage = getStorage();
+      const currentHigh = storage?.getNumber(HIGH_SCORE_KEY) || 0;
 
       // Only update if new score is higher
       if (score <= currentHigh) {
@@ -94,7 +121,9 @@ export class HighScoreService {
       }
 
       // Update local storage immediately (optimistic update)
-      storage.set(HIGH_SCORE_KEY, score);
+      if (storage) {
+        storage.set(HIGH_SCORE_KEY, score);
+      }
 
       // If no user, only update local
       if (!userId) {
@@ -107,7 +136,9 @@ export class HighScoreService {
           console.warn('[HighScoreService] Failed to sync high score:', error);
         }
         // Mark as unsynced for retry later
-        storage.set(HIGH_SCORE_SYNC_KEY, false);
+        if (storage) {
+          storage.set(HIGH_SCORE_SYNC_KEY, false);
+        }
       });
 
       return true;
@@ -142,7 +173,10 @@ export class HighScoreService {
       }
 
       // Mark as synced
-      storage.set(HIGH_SCORE_SYNC_KEY, true);
+      const storage = getStorage();
+      if (storage) {
+        storage.set(HIGH_SCORE_SYNC_KEY, true);
+      }
     } catch (error) {
       if (__DEV__) {
         console.error('[HighScoreService] Error syncing to cloud:', error);
@@ -197,6 +231,11 @@ export class HighScoreService {
       return;
     }
 
+    const storage = getStorage();
+    if (!storage) {
+      return;
+    }
+
     const isSynced = storage.getBoolean(HIGH_SCORE_SYNC_KEY) ?? true;
     if (isSynced) {
       return;
@@ -218,7 +257,8 @@ export class HighScoreService {
    * Get local high score (for offline use)
    */
   static getLocalHighScore(): number {
-    return storage.getNumber(HIGH_SCORE_KEY) || 0;
+    const storage = getStorage();
+    return storage?.getNumber(HIGH_SCORE_KEY) || 0;
   }
 }
 
