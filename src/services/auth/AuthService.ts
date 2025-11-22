@@ -176,23 +176,30 @@ class AuthService {
       
       // No stored guest or restore failed - create new anonymous account
       console.log('🆕 Creating new anonymous account...');
-      const { data, error } = await supabase.auth.signInAnonymously();
+      
+      // Generate username before signing in
+      const timestamp = Date.now();
+      const username = `Guest${timestamp.toString().slice(-6)}`;
+
+      // Sign in anonymously with metadata for the trigger
+      const { data, error } = await supabase.auth.signInAnonymously({
+        options: {
+          data: {
+            username: username,
+            is_anonymous: true
+          }
+        }
+      });
 
       if (error) throw error;
 
-      // Create profile with random username
+      // Wait for profile to be created by trigger
       if (data.user) {
-        const timestamp = Date.now();
-        const username = `Guest${timestamp.toString().slice(-6)}`;
-        
         // Store guest ID for future sessions
         await AsyncStorage.setItem(GUEST_USER_KEY, data.user.id);
         
-        // Create profile with retry logic to handle timing issues
-        await this.createOrUpdateProfileWithRetry(data.user, {
-          username,
-          email: null, // Anonymous users don't have email
-        });
+        // Verify profile creation (handled by database trigger now)
+        await this.waitForProfileCreation(data.user.id);
         
         console.log('✅ Created new guest account:', username);
       }
@@ -288,12 +295,9 @@ class AuthService {
 
       if (error) throw error;
 
-      // Create profile
+      // Wait for profile creation (handled by database trigger)
       if (data.user) {
-        await this.createOrUpdateProfile(data.user, {
-          username,
-          email,
-        });
+        await this.waitForProfileCreation(data.user.id);
       }
 
       return {
@@ -469,11 +473,40 @@ class AuthService {
   }
 
   /**
-   * Create or update user profile in database
-   */
-  /**
-   * Create or update profile with retry logic to handle race conditions
+   * Wait for profile to be created by database trigger
    * @private
+   */
+  private async waitForProfileCreation(
+    userId: string,
+    maxRetries: number = 5,
+    retryDelay: number = 1000
+  ): Promise<void> {
+    const supabase = getSupabase();
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (data) {
+        console.log('✅ Profile creation verified');
+        return;
+      }
+
+      if (attempt < maxRetries) {
+        console.log(`⏳ Waiting for profile creation... (${attempt}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+    
+    console.warn('⚠️ Profile creation verification timed out - trigger may have failed or is slow');
+  }
+
+  /**
+   * Create or update user profile - DEPRECATED: handled by triggers now
+   * kept for legacy support/updates
    */
   private async createOrUpdateProfileWithRetry(
     user: User,
@@ -481,77 +514,10 @@ class AuthService {
     maxRetries: number = 3,
     retryDelay: number = 500
   ): Promise<void> {
-    let lastError: any = null;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const supabase = getSupabase();
-
-        const { error } = await supabase
-          .from('profiles')
-          .upsert({
-            id: user.id,
-            email: profileData.email || user.email,
-            username: profileData.username,
-            avatar_url: profileData.avatar_url,
-            bio: profileData.bio,
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'id',
-          });
-
-        if (error) throw error;
-
-        // Verify profile was created by fetching it
-        const { data: verifyData, error: verifyError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (verifyError && verifyError.code !== 'PGRST116') {
-          throw verifyError;
-        }
-
-        if (verifyData) {
-          // Profile exists - success!
-          // Also create user_settings entry (non-critical)
-          try {
-            await supabase
-              .from('user_settings')
-              .upsert({
-                user_id: user.id,
-                updated_at: new Date().toISOString(),
-              }, {
-                onConflict: 'user_id',
-              });
-          } catch (settingsError) {
-            // Non-critical - profile was created successfully
-            console.warn('Failed to create user_settings entry:', settingsError);
-          }
-
-          console.log('✅ User profile created/updated');
-          return; // Success - exit retry loop
-        }
-
-        // Profile not found after creation - retry
-        if (attempt < maxRetries) {
-          console.log(`⚠️ Profile not found after creation, retrying (${attempt}/${maxRetries})...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          continue;
-        }
-      } catch (error: any) {
-        lastError = error;
-        if (attempt < maxRetries) {
-          console.log(`⚠️ Profile creation failed, retrying (${attempt}/${maxRetries}):`, error.message);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-      }
+    // Forward to updateProfile for updates, skip creation
+    if (Object.keys(profileData).length > 0) {
+       await this.updateProfile(profileData);
     }
-
-    // All retries failed
-    console.error('❌ Failed to create profile after', maxRetries, 'attempts:', lastError);
-    throw lastError || new Error('Failed to create profile');
   }
 
   private async createOrUpdateProfile(
@@ -736,7 +702,8 @@ class AuthService {
 
       // Update profile with email
       if (data.user) {
-        await this.createOrUpdateProfile(data.user, {
+        // Just update the email/metadata, don't try to create
+        await this.updateProfile({
           email: email,
         });
       }
