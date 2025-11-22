@@ -138,6 +138,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
         // Initialize RevenueCat with user ID (non-blocking, lazy-loaded)
         if (profile?.id) {
+          // TEMPORARY: Disable RevenueCat
+          /*
           try {
             const [{ revenueCatService }, { premiumService }] = await Promise.all([
               import('../src/services/iap/RevenueCatService'),
@@ -151,6 +153,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
               console.warn('RevenueCat initialization failed:', error);
             }
           }
+          */
         }
       } else {
         // No existing session - auto-create anonymous account for tracking
@@ -197,6 +200,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             
             // Initialize RevenueCat with anonymous user ID (non-blocking, lazy-loaded)
             if (profile?.id) {
+              // TEMPORARY: Disable RevenueCat
+              /*
               try {
                 const { revenueCatService } = await import('../src/services/iap/RevenueCatService');
                 await revenueCatService.initialize(profile.id);
@@ -206,6 +211,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                   console.warn('RevenueCat initialization failed (anonymous):', error);
                 }
               }
+              */
             }
           }
         } catch (error) {
@@ -228,6 +234,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
           // Initialize/update RevenueCat for logged in user (lazy-loaded)
           if (profile?.id) {
+            // TEMPORARY: Disable RevenueCat
+            /*
             try {
               const { revenueCatService } = await import('../src/services/iap/RevenueCatService');
               if (!revenueCatService.isInitialized()) {
@@ -239,6 +247,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                 console.warn('RevenueCat initialization failed (logged in):', error);
               }
             }
+            */
           }
         } else {
           useMonetizationStore.getState().reset();

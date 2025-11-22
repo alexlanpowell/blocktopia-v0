@@ -68,24 +68,21 @@ class AudioSettingsStorage {
   async loadSettings(): Promise<AudioSettings> {
     const storage = this.getStorage();
     
-    // If MMKV not available, return defaults
-    if (!storage) {
-      if (__DEV__) {
-        console.warn('[AudioSettingsStorage] MMKV unavailable, using default settings');
-      }
-      return DEFAULT_SETTINGS;
-    }
-
-    const settings: AudioSettings = {
+    // Load settings from MMKV if available, otherwise use defaults
+    const settings: AudioSettings = storage ? {
       musicVolume: storage.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume,
       sfxVolume: storage.getNumber('sfx_volume') ?? DEFAULT_SETTINGS.sfxVolume,
       musicEnabled: storage.getBoolean('music_enabled') ?? DEFAULT_SETTINGS.musicEnabled,
       sfxEnabled: storage.getBoolean('sfx_enabled') ?? DEFAULT_SETTINGS.sfxEnabled,
       currentMusicPack:
         storage.getString('current_music_pack') ?? DEFAULT_SETTINGS.currentMusicPack,
-    };
+    } : DEFAULT_SETTINGS;
 
-    // Apply to AudioManager
+    if (!storage && __DEV__) {
+      console.warn('[AudioSettingsStorage] MMKV unavailable, using default settings');
+    }
+
+    // ALWAYS apply to AudioManager, regardless of MMKV availability
     AudioManager.setInitialSettings({
       musicVolume: settings.musicVolume,
       sfxVolume: settings.sfxVolume,
@@ -93,10 +90,12 @@ class AudioSettingsStorage {
       sfxEnabled: settings.sfxEnabled,
     });
 
-    // Try to load from Supabase (non-blocking)
-    this.loadFromSupabase().catch(() => {
-      // Silent fail - local settings are primary
-    });
+    // Try to load from Supabase (non-blocking) only if storage available
+    if (storage) {
+      this.loadFromSupabase().catch(() => {
+        // Silent fail - local settings are primary
+      });
+    }
 
     return settings;
   }

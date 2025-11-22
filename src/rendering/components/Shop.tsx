@@ -42,6 +42,9 @@ export function Shop({ visible, onClose }: ShopProps) {
   const handlePurchase = async (product: Product) => {
     if (loading || !user.isAuthenticated) return;
 
+    // TEMPORARY: Disable IAP
+    Alert.alert('Not Available', 'In-app purchases are temporarily disabled for maintenance.');
+    /*
     try {
       setLoading(true);
       setPurchasingId(product.id);
@@ -69,11 +72,15 @@ export function Shop({ visible, onClose }: ShopProps) {
       setLoading(false);
       setPurchasingId(null);
     }
+    */
   };
 
   const handleRestore = async () => {
     if (loading) return;
 
+    // TEMPORARY: Disable Restore
+    Alert.alert('Not Available', 'Purchase restoration is temporarily disabled.');
+    /*
     try {
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -91,6 +98,7 @@ export function Shop({ visible, onClose }: ShopProps) {
     } finally {
       setLoading(false);
     }
+    */
   };
 
   const handlePowerUpPurchase = async (type: PowerUpType, quantity: number = 1) => {
@@ -136,6 +144,9 @@ export function Shop({ visible, onClose }: ShopProps) {
   const handleSubscriptionPurchase = async (productId: string) => {
     if (loading) return;
     
+    // TEMPORARY: Disable Subscription
+    Alert.alert('Not Available', 'Subscriptions are temporarily disabled.');
+    /*
     try {
       setLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -155,6 +166,7 @@ export function Shop({ visible, onClose }: ShopProps) {
     } finally {
       setLoading(false);
     }
+    */
   };
 
   return (

@@ -10,7 +10,7 @@ module.exports = {
     name: "Blocktopia",
     slug: "blocktopia",
     owner: "turntopia",
-    version: "1.0.15",
+    version: "1.0.17",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -25,7 +25,7 @@ module.exports = {
       supportsTablet: false,
       bundleIdentifier: "com.blocktopia.app",
       infoPlist: {
-        // GADApplicationIdentifier: "ca-app-pub-3088920444099039~9002215056", // DISABLED - Testing if this causes native crash
+        GADApplicationIdentifier: "ca-app-pub-3088920444099039~9002215056", // Re-enabled for testing
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription: "We need access to your photo library to upload your profile avatar.",
         NSCameraUsageDescription: "We need access to your camera to take a photo for your profile avatar."

@@ -58,19 +58,33 @@ export function AudioControls() {
     await audioSettingsStorage.setSfxEnabled(newValue);
   }, [sfxEnabled]);
 
-  // Music volume handler
-  const handleMusicVolumeChange = useCallback(async (value: number) => {
+  // Music volume handler - VISUAL FEEDBACK ONLY (while dragging)
+  const handleMusicVolumeChange = useCallback((value: number) => {
     setMusicVolume(value);
+    // Just update AudioManager volume in real-time for immediate feedback
+    AudioManager.setMusicVolume(value);
+  }, []);
+
+  // Music volume complete - SAVE & LOG (when released)
+  const handleMusicVolumeComplete = useCallback(async (value: number) => {
+    // Save to storage (triggers analytics)
     await audioSettingsStorage.setMusicVolume(value);
-    // Play test sound if enabled
+    // Play test sound
     if (sfxEnabled) {
       AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
     }
   }, [sfxEnabled]);
 
-  // SFX volume handler
-  const handleSfxVolumeChange = useCallback(async (value: number) => {
+  // SFX volume handler - VISUAL FEEDBACK ONLY (while dragging)
+  const handleSfxVolumeChange = useCallback((value: number) => {
     setSfxVolume(value);
+    // Just update AudioManager volume in real-time for immediate feedback
+    AudioManager.setSfxVolume(value);
+  }, []);
+
+  // SFX volume complete - SAVE & LOG (when released)
+  const handleSfxVolumeComplete = useCallback(async (value: number) => {
+    // Save to storage (triggers analytics)
     await audioSettingsStorage.setSfxVolume(value);
     // Play test sound
     AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
@@ -114,6 +128,7 @@ export function AudioControls() {
                 maximumValue={1}
                 value={musicVolume}
                 onValueChange={handleMusicVolumeChange}
+                onSlidingComplete={handleMusicVolumeComplete}
                 minimumTrackTintColor={COLORS.primary.cyan}
                 maximumTrackTintColor={COLORS.ui.cardBorder}
                 thumbTintColor={COLORS.primary.cyan}
@@ -167,6 +182,7 @@ export function AudioControls() {
                 maximumValue={1}
                 value={sfxVolume}
                 onValueChange={handleSfxVolumeChange}
+                onSlidingComplete={handleSfxVolumeComplete}
                 minimumTrackTintColor={COLORS.accent.success}
                 maximumTrackTintColor={COLORS.ui.cardBorder}
                 thumbTintColor={COLORS.accent.success}

@@ -57,6 +57,8 @@ export const HUD = memo(function HUD() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
     
+    // TEMPORARY: Disable interstitial ads
+    /*
     // Show interstitial ad before restarting (for free users)
     try {
       // Lazy-load ad service to prevent native module crash
@@ -73,6 +75,7 @@ export const HUD = memo(function HUD() {
         console.log('Interstitial ad not shown:', error);
       }
     }
+    */
     
     // Restart game regardless of ad result
     restartGameStore();
@@ -94,10 +97,16 @@ export const HUD = memo(function HUD() {
       return;
     }
     
+    // TEMPORARY: Disable rewarded ads
     // Free users watch rewarded ad for extra try
-    setIsLoadingAd(true);
+    // setIsLoadingAd(true);
     
     try {
+      // For now, just grant the continue if ads are disabled
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      continueGameStore();
+
+      /*
       // Lazy-load ad service to prevent native module crash
       const { rewardedAdService } = await import('../../services/ads/RewardedAdService');
       
@@ -115,6 +124,7 @@ export const HUD = memo(function HUD() {
         setContinueError(errorMsg);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
+      */
     } catch (error) {
       // Ad failed to load or show
       setContinueError('Ad not available, try again');

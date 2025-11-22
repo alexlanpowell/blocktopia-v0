@@ -20,6 +20,9 @@ import { useMonetizationStore } from '../../store/monetizationStore';
  * Lazy-loads native ad module to prevent crashes on startup
  */
 export const GameBannerAd = memo(function GameBannerAd() {
+  // TEMPORARY: Disable ads completely for crash debugging
+  return null;
+  /*
   const insets = useSafeAreaInsets();
   const isPremium = useMonetizationStore(state => state.isPremium);
   const adFreePurchased = useMonetizationStore(state => state.adState.adFreePurchased);
@@ -117,6 +120,7 @@ export const GameBannerAd = memo(function GameBannerAd() {
       />
     </View>
   );
+  */
 });
 
 /**
@@ -127,6 +131,9 @@ export const GameBannerAd = memo(function GameBannerAd() {
  * Lazy-loads native ad module to prevent crashes on startup
  */
 export const HomeBannerAd = memo(function HomeBannerAd() {
+  // TEMPORARY: Disable ads completely for crash debugging
+  return null;
+  /*
   const insets = useSafeAreaInsets();
   const isPremium = useMonetizationStore(state => state.isPremium);
   const adFreePurchased = useMonetizationStore(state => state.adState.adFreePurchased);
@@ -219,6 +226,7 @@ export const HomeBannerAd = memo(function HomeBannerAd() {
       />
     </View>
   );
+  */
 });
 
 const styles = StyleSheet.create({
