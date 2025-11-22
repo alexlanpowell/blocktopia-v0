@@ -10,7 +10,7 @@ module.exports = {
     name: "Blocktopia",
     slug: "blocktopia",
     owner: "turntopia",
-    version: "1.0.17",
+    version: "1.0.18",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
