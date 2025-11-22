@@ -79,13 +79,32 @@ class SupabaseManager {
           getSession: async () => ({ data: { session: null }, error: null }),
           getUser: async () => ({ data: { user: null }, error: null }),
           onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+          signInAnonymously: async () => {
+            console.warn('Mock signInAnonymously called');
+            return { data: { user: null, session: null }, error: new Error('Supabase not configured') };
+          },
+          signInWithPassword: async () => {
+            console.warn('Mock signInWithPassword called');
+            return { data: { user: null, session: null }, error: new Error('Supabase not configured') };
+          },
+          signUp: async () => {
+            console.warn('Mock signUp called');
+            return { data: { user: null, session: null }, error: new Error('Supabase not configured') };
+          },
+          signOut: async () => ({ error: null }),
         },
         from: () => ({
-          select: () => ({ data: [], error: null }),
+          select: () => ({ data: [], error: null, maybeSingle: () => ({ data: null, error: null }) }),
           insert: () => ({ data: [], error: null }),
           update: () => ({ data: [], error: null }),
           delete: () => ({ data: [], error: null }),
         }),
+        storage: {
+          from: () => ({
+            upload: async () => ({ data: null, error: new Error('Supabase not configured') }),
+            getPublicUrl: () => ({ data: { publicUrl: '' } }),
+          }),
+        },
       } as unknown as SupabaseClient;
       
       this.client = mockClient;
