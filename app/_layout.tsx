@@ -127,19 +127,18 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           const currentPack = audioSettingsStorage.getCurrentMusicPack();
           const musicTrackMap: Record<string, any> = {
             'none': MusicTrack.NONE,
-            'ambient': MusicTrack.AMBIENT,
             'default-saloon': MusicTrack.DEFAULT_SALOON,
-            'electronic': MusicTrack.ELECTRONIC,
+            // Only tracks with actual audio files
           };
           const track = musicTrackMap[currentPack] || MusicTrack.DEFAULT_SALOON;
           
           // Defensive check: ensure track is valid before playing
           if (track && track !== undefined && Object.values(MusicTrack).includes(track)) {
             AudioManager.playMusic(track).catch((err: any) => {
-              if (__DEV__) console.warn('Failed to start music:', err);
+              if (__DEV__) console.warn('[Layout] Failed to start music:', err);
             });
           } else {
-            if (__DEV__) console.warn('Invalid music track, skipping playback:', track);
+            if (__DEV__) console.warn('[Layout] Invalid music track, skipping playback:', track);
           }
         }
 

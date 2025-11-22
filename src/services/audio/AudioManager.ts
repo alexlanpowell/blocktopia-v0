@@ -29,9 +29,8 @@ export enum SoundEffect {
 
 export enum MusicTrack {
   NONE = 'none',
-  AMBIENT = 'ambient',
   DEFAULT_SALOON = 'default-saloon',
-  ELECTRONIC = 'electronic',
+  // AMBIENT and ELECTRONIC removed - no audio files exist
 }
 
 class AudioManager {
@@ -177,20 +176,18 @@ class AudioManager {
     if (track === MusicTrack.NONE) return null;
     
     try {
-      switch (track) {
-        case MusicTrack.AMBIENT:
-          return require('../../../assets/music/ambient.mp3');
-        case MusicTrack.DEFAULT_SALOON:
-          return require('../../../assets/music/default-saloon.mp3');
-        case MusicTrack.ELECTRONIC:
-          return require('../../../assets/music/electronic.mp3');
-        default:
-          return null;
+      // ONLY load the file that actually exists
+      if (track === MusicTrack.DEFAULT_SALOON) {
+        return require('../../../assets/music/default-saloon.mp3');
       }
-    } catch (error) {
+      
+      // All other tracks don't have files yet
       if (__DEV__) {
-        console.warn(`Music file not found for track ${track}`);
+        console.warn(`[AudioManager] Music track ${track} not implemented yet (no audio file)`);
       }
+      return null;
+    } catch (error) {
+      console.error(`[AudioManager] Failed to load music file for ${track}:`, error);
       return null;
     }
   }
@@ -220,10 +217,12 @@ class AudioManager {
 
     const source = this.getMusicSource(track);
     if (!source) {
-      if (__DEV__) {
-        console.warn(`Cannot play music: ${track} file not found`);
-      }
+      console.error(`[AudioManager] Cannot play music: ${track} - no audio file available`);
       return;
+    }
+
+    if (__DEV__) {
+      console.log(`[AudioManager] Playing music track: ${track}`);
     }
 
     try {
@@ -244,7 +243,10 @@ class AudioManager {
         source: 'user_action',
       });
     } catch (error) {
-      console.error(`Failed to play music track ${track}:`, error);
+      console.error(`[AudioManager] Failed to play music track ${track}:`, error);
+      if (error instanceof Error) {
+        console.error(`[AudioManager] Error message: ${error.message}`);
+      }
       this.currentMusic = null;
       this.currentTrack = MusicTrack.NONE;
     }
