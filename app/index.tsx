@@ -304,7 +304,7 @@ export default function IndexScreen() {
           activeOpacity={1}
           style={{ padding: 20, marginTop: 20 }}
         >
-          <Text style={styles.versionText}>v1.0.8</Text>
+          <Text style={styles.versionText}>v1.0.0</Text>
         </TouchableOpacity>
       </View>
 
