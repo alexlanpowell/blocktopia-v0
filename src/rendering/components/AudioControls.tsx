@@ -18,7 +18,7 @@ import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SHADOWS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../utils/theme';
 import { audioSettingsStorage } from '../../services/audio/AudioSettingsStorage';
-import AudioManager, { SoundEffect } from '../../services/audio/AudioManager';
+import { SoundEffect } from '../../services/audio/AudioManager';
 
 export function AudioControls() {
   const [musicVolume, setMusicVolume] = useState(0.6);
@@ -38,7 +38,10 @@ export function AudioControls() {
   // Music toggle handler
   const handleMusicToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    // Play sound (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    }).catch(() => {});
     
     const newValue = !musicEnabled;
     setMusicEnabled(newValue);
@@ -48,9 +51,11 @@ export function AudioControls() {
   // SFX toggle handler
   const handleSfxToggle = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Play sound before disabling (if currently enabled)
+    // Play sound before disabling (if currently enabled) (dynamic import)
     if (sfxEnabled) {
-      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+      import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+        AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+      }).catch(() => {});
     }
     
     const newValue = !sfxEnabled;
@@ -61,33 +66,41 @@ export function AudioControls() {
   // Music volume handler - VISUAL FEEDBACK ONLY (while dragging)
   const handleMusicVolumeChange = useCallback((value: number) => {
     setMusicVolume(value);
-    // Just update AudioManager volume in real-time for immediate feedback
-    AudioManager.setMusicVolume(value);
+    // Just update AudioManager volume in real-time for immediate feedback (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.setMusicVolume(value);
+    }).catch(() => {});
   }, []);
 
   // Music volume complete - SAVE & LOG (when released)
   const handleMusicVolumeComplete = useCallback(async (value: number) => {
     // Save to storage (triggers analytics)
     await audioSettingsStorage.setMusicVolume(value);
-    // Play test sound
+    // Play test sound (dynamic import)
     if (sfxEnabled) {
-      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+      import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+        AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+      }).catch(() => {});
     }
   }, [sfxEnabled]);
 
   // SFX volume handler - VISUAL FEEDBACK ONLY (while dragging)
   const handleSfxVolumeChange = useCallback((value: number) => {
     setSfxVolume(value);
-    // Just update AudioManager volume in real-time for immediate feedback
-    AudioManager.setSfxVolume(value);
+    // Just update AudioManager volume in real-time for immediate feedback (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.setSfxVolume(value);
+    }).catch(() => {});
   }, []);
 
   // SFX volume complete - SAVE & LOG (when released)
   const handleSfxVolumeComplete = useCallback(async (value: number) => {
     // Save to storage (triggers analytics)
     await audioSettingsStorage.setSfxVolume(value);
-    // Play test sound
-    AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+    // Play test sound (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+    }).catch(() => {});
   }, []);
 
   return (

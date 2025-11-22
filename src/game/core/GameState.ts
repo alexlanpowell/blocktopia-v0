@@ -7,7 +7,7 @@ import { Board } from './Board';
 import { generateRandomPiece } from './Piece';
 import { calculateScore } from '../scoring/ScoreCalculator';
 import { Piece, IGameState, BoardGrid } from '../../utils/types';
-import AudioManager, { SoundEffect } from '../../services/audio/AudioManager';
+import { SoundEffect } from '../../services/audio/AudioManager';
 import { GAME_CONFIG } from '../constants';
 
 export class GameState {
@@ -102,7 +102,7 @@ export class GameState {
   /**
    * Handle line clearing logic
    */
-  private handleLineClearing(): void {
+  private async handleLineClearing(): Promise<void> {
     const fullLines = this.board.checkFullLines();
 
     if (fullLines.totalLines > 0) {
@@ -119,11 +119,16 @@ export class GameState {
         this.bestScore = this.score;
       }
 
-      // Play appropriate sound based on lines cleared
-      if (fullLines.totalLines >= 4) {
-        AudioManager.playSoundEffect(SoundEffect.MULTI_LINE_CLEAR);
-      } else {
-        AudioManager.playSoundEffect(SoundEffect.LINE_CLEAR);
+      // Play appropriate sound based on lines cleared (dynamic import)
+      try {
+        const AudioManager = (await import('../../services/audio/AudioManager')).default;
+        if (fullLines.totalLines >= 4) {
+          AudioManager.playSoundEffect(SoundEffect.MULTI_LINE_CLEAR);
+        } else {
+          AudioManager.playSoundEffect(SoundEffect.LINE_CLEAR);
+        }
+      } catch (error) {
+        // Silent fail - audio is non-critical
       }
     }
   }
@@ -131,13 +136,18 @@ export class GameState {
   /**
    * Check if game is over (no pieces can be placed)
    */
-  private checkGameOver(): void {
+  private async checkGameOver(): Promise<void> {
     const canPlace = this.board.canPlaceAnyPiece(this.currentPieces);
 
     if (!canPlace && !this.isGameOver) {
       this.isGameOver = true;
-      // Play game over sound
-      AudioManager.playSoundEffect(SoundEffect.GAME_OVER);
+      // Play game over sound (dynamic import)
+      try {
+        const AudioManager = (await import('../../services/audio/AudioManager')).default;
+        AudioManager.playSoundEffect(SoundEffect.GAME_OVER);
+      } catch (error) {
+        // Silent fail - audio is non-critical
+      }
     }
   }
 

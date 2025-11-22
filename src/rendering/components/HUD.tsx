@@ -14,7 +14,7 @@ import { useScore, useBestScore, useIsGameOver, useGameStore } from '../../store
 import { useMonetizationStore } from '../../store/monetizationStore';
 // DON'T import ad services here - lazy load to prevent Google Mobile Ads native module crash
 import { COLORS, SHADOWS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../utils/theme';
-import AudioManager, { SoundEffect } from '../../services/audio/AudioManager';
+import { SoundEffect } from '../../services/audio/AudioManager';
 
 export const HUD = memo(function HUD() {
   const score = useScore();
@@ -35,7 +35,10 @@ export const HUD = memo(function HUD() {
   
   const handleRestartPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    // Play sound (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    }).catch(() => {});
     Alert.alert(
       "Restart Game",
       "Are you sure you want to restart? Your current progress will be lost.",
@@ -55,7 +58,10 @@ export const HUD = memo(function HUD() {
 
   const handlePlayAgain = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    // Play sound (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    }).catch(() => {});
     
     // TEMPORARY: Disable interstitial ads
     /*
@@ -87,7 +93,10 @@ export const HUD = memo(function HUD() {
     }
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    // Play sound (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    }).catch(() => {});
     setContinueError(null);
     
     // Premium users get extra try without ads
@@ -140,7 +149,10 @@ export const HUD = memo(function HUD() {
 
   const handleBack = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    // Play sound (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+    }).catch(() => {});
     router.back();
   }, [router]);
 
@@ -180,7 +192,10 @@ export const HUD = memo(function HUD() {
           <TouchableOpacity 
             style={styles.button} 
             onPress={() => {
-              AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+              // Play sound (dynamic import)
+              import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+                AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+              }).catch(() => {});
               router.push('/settings');
             }}
             activeOpacity={0.7}

@@ -7,7 +7,7 @@
 
 import * as Haptics from 'expo-haptics';
 import { useGameStore } from '../../store/gameStore';
-import AudioManager, { SoundEffect } from '../../services/audio/AudioManager';
+import { SoundEffect } from '../../services/audio/AudioManager';
 
 // JS-thread logging (not worklet-safe, for use in regular JS functions)
 const logErrorJS = (message: string, error?: any) => {
@@ -54,8 +54,12 @@ export const startDragOnJS = (pieceIndex: number, x: number, y: number, touchOff
     const touchOffset = { x: touchOffsetX, y: touchOffsetY };
     store.startDrag(pieceIndex, position, touchOffset);
     
-    // Play pickup sound
-    AudioManager.playSoundEffect(SoundEffect.PIECE_PICKUP);
+    // Play pickup sound (dynamic import)
+    import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+      AudioManager.playSoundEffect(SoundEffect.PIECE_PICKUP);
+    }).catch(() => {
+      // Silent fail - audio is non-critical
+    });
     
     if (__DEV__) {
       console.log('[startDragOnJS] startDrag completed successfully');
@@ -122,7 +126,12 @@ export const endDragOnJS = (): boolean => {
     if (success) {
       try {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        AudioManager.playSoundEffect(SoundEffect.PIECE_PLACE);
+        // Play sound (dynamic import)
+        import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+          AudioManager.playSoundEffect(SoundEffect.PIECE_PLACE);
+        }).catch(() => {
+          // Silent fail - audio is non-critical
+        });
       } catch (hapticError) {
         // Haptics errors are non-critical, fail silently
         if (__DEV__) {
@@ -130,8 +139,12 @@ export const endDragOnJS = (): boolean => {
         }
       }
     } else {
-      // Play invalid sound if placement failed
-      AudioManager.playSoundEffect(SoundEffect.PIECE_INVALID);
+      // Play invalid sound if placement failed (dynamic import)
+      import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
+        AudioManager.playSoundEffect(SoundEffect.PIECE_INVALID);
+      }).catch(() => {
+        // Silent fail - audio is non-critical
+      });
     }
     
     return success;
