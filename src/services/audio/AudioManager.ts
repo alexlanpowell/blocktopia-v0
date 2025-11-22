@@ -199,6 +199,12 @@ class AudioManager {
    * Play background music (loops automatically)
    */
   async playMusic(track: MusicTrack): Promise<void> {
+    // Defensive check: validate track parameter
+    if (!track || track === undefined) {
+      console.error('[AudioManager] Invalid music track provided:', track);
+      return;
+    }
+    
     if (track === MusicTrack.NONE || !this.isMusicEnabled) {
       await this.stopMusic();
       return;

@@ -133,9 +133,14 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           };
           const track = musicTrackMap[currentPack] || MusicTrack.DEFAULT_SALOON;
           
-          AudioManager.playMusic(track).catch((err: any) => {
-            if (__DEV__) console.warn('Failed to start music:', err);
-          });
+          // Defensive check: ensure track is valid before playing
+          if (track && track !== undefined && Object.values(MusicTrack).includes(track)) {
+            AudioManager.playMusic(track).catch((err: any) => {
+              if (__DEV__) console.warn('Failed to start music:', err);
+            });
+          } else {
+            if (__DEV__) console.warn('Invalid music track, skipping playback:', track);
+          }
         }
 
         /*
@@ -194,9 +199,14 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
               };
               const track = musicTrackMap[currentPack] || MusicTrack.DEFAULT_SALOON;
               
-              AudioManager.playMusic(track).catch((err: any) => {
-                if (__DEV__) console.warn('Failed to start music:', err);
-              });
+              // Defensive check: ensure track is valid before playing
+              if (track && track !== undefined && Object.values(MusicTrack).includes(track)) {
+                AudioManager.playMusic(track).catch((err: any) => {
+                  if (__DEV__) console.warn('Failed to start music:', err);
+                });
+              } else {
+                if (__DEV__) console.warn('Invalid music track, skipping playback:', track);
+              }
             }
             
             /*
