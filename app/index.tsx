@@ -109,10 +109,23 @@ export default function IndexScreen() {
     router.push('/game');
   };
 
-  // Complex secret sequence: version → logo → version → subtitle → version → hold version (5s) → hold logo (5s)
+  // Complex secret sequence: hold logo (5s) → version → logo → version → subtitle → version → hold version (5s)
   const SECRET_CODE = ['version', 'logo', 'version', 'subtitle', 'version'];
 
+  const handleLogoLongPress = () => {
+    // First step: hold logo to enable the sequence
+    if (__DEV__) {
+      console.log('✅ Logo hold complete! Sequence enabled. Start tapping: version → logo → version → subtitle → version → hold version');
+    }
+    setVersionHoldComplete(true);
+  };
+
   const handleSecretTap = (location: string) => {
+    // Only track taps if logo was held first
+    if (!versionHoldComplete) {
+      return;
+    }
+
     setSecretSequence(prev => {
       const newSeq = [...prev, location].slice(-5); // Keep last 5 taps
       
@@ -120,7 +133,7 @@ export default function IndexScreen() {
         console.log(`🔐 Secret sequence: [${newSeq.join(' → ')}]`);
       }
       
-      // Check if tap sequence matches (before holds)
+      // Check if tap sequence matches
       if (JSON.stringify(newSeq) === JSON.stringify(SECRET_CODE)) {
         if (__DEV__) {
           console.log('✅ Tap sequence complete! Now hold version for 5 seconds...');
@@ -137,21 +150,7 @@ export default function IndexScreen() {
   };
 
   const handleVersionLongPress = () => {
-    // Check if tap sequence was completed
-    if (JSON.stringify(secretSequence) === JSON.stringify(SECRET_CODE)) {
-      if (__DEV__) {
-        console.log('✅ Version hold complete! Now hold Blocktopia logo for 5 seconds...');
-      }
-      setVersionHoldComplete(true);
-    }
-  };
-
-  const handleLogoTap = () => {
-    handleSecretTap('logo');
-  };
-
-  const handleLogoLongPress = () => {
-    // Check if both tap sequence AND version hold were completed
+    // Check if logo was held AND tap sequence was completed
     if (versionHoldComplete && JSON.stringify(secretSequence) === JSON.stringify(SECRET_CODE)) {
       if (__DEV__) {
         console.log('🔓 Admin dashboard unlocked! Full sequence completed.');
@@ -161,6 +160,10 @@ export default function IndexScreen() {
       setSecretSequence([]);
       setVersionHoldComplete(false);
     }
+  };
+
+  const handleLogoTap = () => {
+    handleSecretTap('logo');
   };
 
   const handleSubtitleTap = () => {
