@@ -29,6 +29,12 @@ const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canB
   const pieceCells = useMemo(() => {
     const cells: React.ReactElement[] = [];
 
+    // DEFENSIVE CHECK: Ensure piece has valid structure
+    if (!piece || !piece.structure || piece.structure.length === 0) {
+      console.error('[PiecePreview] Invalid piece structure:', piece);
+      return cells; // Return empty array
+    }
+
     // Calculate piece bounds for centering
     const minX = Math.min(...piece.structure.map(cell => cell.x));
     const maxX = Math.max(...piece.structure.map(cell => cell.x));

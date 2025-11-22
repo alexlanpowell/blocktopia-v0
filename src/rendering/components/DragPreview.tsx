@@ -23,6 +23,12 @@ export const DragPreview = memo(function DragPreview() {
       return null;
     }
 
+    // DEFENSIVE CHECK: Ensure piece has valid structure
+    if (!dragState.draggedPiece.structure || dragState.draggedPiece.structure.length === 0) {
+      console.error('[DragPreview] Invalid piece structure:', dragState.draggedPiece);
+      return null;
+    }
+
     const cells: React.ReactElement[] = [];
     const piece = dragState.draggedPiece;
 

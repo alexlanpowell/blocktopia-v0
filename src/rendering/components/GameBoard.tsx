@@ -48,7 +48,9 @@ export const GameBoard = memo(function GameBoard() {
         let previewGradient = null;
         if (
           dragState.isDragging &&
-          dragState.draggedPiece
+          dragState.draggedPiece &&
+          dragState.draggedPiece.structure &&
+          dragState.draggedPiece.structure.length > 0
         ) {
           // Show preview at target position if available, otherwise show at current drag position
           if (dragState.targetPosition) {
