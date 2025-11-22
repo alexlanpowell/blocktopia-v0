@@ -14,23 +14,17 @@ import Constants from 'expo-constants';
 // EAS Secrets are injected into Constants.expoConfig.extra during cloud builds
 // For local dev, we fall back to @env imports from .env file
 
-// Helper function to get env var from EAS Secrets (production) or @env (dev)
+// Helper function to get env var from EAS Secrets or local .env (via Constants)
 function getEnvVar(key: string): string {
   try {
-    // First, try EAS Secrets (available in Constants.expoConfig.extra in cloud builds)
+    // Get from Constants.expoConfig.extra (works for both EAS Secrets and local .env)
+    // In EAS builds: process.env values are injected into extra during build
+    // In local dev: .env values are loaded by expo-constants
     const expoExtra = Constants.expoConfig?.extra;
     if (expoExtra && expoExtra[key]) {
       return String(expoExtra[key]);
     }
-    
-    // Fall back to @env for local development
-    // NOTE: This will be empty in cloud builds without .env file
-    try {
-      const envModule = require('@env');
-      return envModule[key] || '';
-    } catch {
-      return '';
-    }
+    return '';
   } catch (error) {
     console.error(`Error loading env var ${key}:`, error);
     return '';
