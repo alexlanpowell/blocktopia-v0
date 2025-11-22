@@ -33,7 +33,6 @@ export default function IndexScreen() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showWelcomeToast, setShowWelcomeToast] = useState(false);
   const [secretSequence, setSecretSequence] = useState<string[]>([]);
-  const [versionHoldComplete, setVersionHoldComplete] = useState(false);
   const [hasActiveGame, setHasActiveGame] = useState(false);
   const [isCheckingGame, setIsCheckingGame] = useState(true);
   const [ShopComponent, setShopComponent] = useState<any>(null);
@@ -109,23 +108,10 @@ export default function IndexScreen() {
     router.push('/game');
   };
 
-  // Complex secret sequence: hold logo (5s) → version → logo → version → subtitle → version
-  const SECRET_CODE = ['version', 'logo', 'version', 'subtitle', 'version'];
-
-  const handleLogoLongPress = () => {
-    // First step: hold logo to enable the sequence
-    if (__DEV__) {
-      console.log('✅ Logo hold complete! Sequence enabled. Start tapping: version → logo → version → subtitle → version → hold version');
-    }
-    setVersionHoldComplete(true);
-  };
+  // Secret sequence: logo → version → logo → version → subtitle → version
+  const SECRET_CODE = ['logo', 'version', 'logo', 'version', 'subtitle', 'version'];
 
   const handleSecretTap = (location: string) => {
-    // Only track taps if logo was held first
-    if (!versionHoldComplete) {
-      return;
-    }
-
     setSecretSequence(prev => {
       const newSeq = [...prev, location].slice(-5); // Keep last 5 taps
       
@@ -139,7 +125,6 @@ export default function IndexScreen() {
           console.log('🔓 Admin dashboard unlocked! Full sequence completed.');
         }
         setShowAdmin(true);
-        setVersionHoldComplete(false);
         return [];
       }
       
@@ -149,10 +134,6 @@ export default function IndexScreen() {
 
   const handleVersionTap = () => {
     handleSecretTap('version');
-  };
-
-  const handleVersionLongPress = () => {
-    // No longer needed - sequence completes on final tap
   };
 
   const handleLogoTap = () => {
@@ -213,8 +194,6 @@ export default function IndexScreen() {
         {/* Logo Image */}
         <TouchableOpacity 
           onPress={handleLogoTap}
-          onLongPress={handleLogoLongPress}
-          delayLongPress={5000}
           activeOpacity={1}
         >
           <Image 
