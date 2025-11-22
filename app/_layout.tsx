@@ -81,6 +81,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
       );
 
       // Initialize Ad Manager (non-blocking, lazy loaded to prevent native module crash)
+      // TEMPORARILY DISABLED - Causing instant crash on startup
+      /*
       initPromises.push(
         (async () => {
           try {
@@ -94,6 +96,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           }
         })()
       );
+      */
 
       // Wait for core services
       await Promise.all(initPromises);
@@ -138,8 +141,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
         // Initialize RevenueCat with user ID (non-blocking, lazy-loaded)
         if (profile?.id) {
-          // TEMPORARY: Disable RevenueCat
-          /*
+          // TEMPORARY: Re-enabled to test stability without AdMob
           try {
             const [{ revenueCatService }, { premiumService }] = await Promise.all([
               import('../src/services/iap/RevenueCatService'),
@@ -153,7 +155,6 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
               console.warn('RevenueCat initialization failed:', error);
             }
           }
-          */
         }
       } else {
         // No existing session - auto-create anonymous account for tracking
@@ -200,8 +201,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             
             // Initialize RevenueCat with anonymous user ID (non-blocking, lazy-loaded)
             if (profile?.id) {
-              // TEMPORARY: Disable RevenueCat
-              /*
+              // TEMPORARY: Re-enabled to test stability without AdMob
               try {
                 const { revenueCatService } = await import('../src/services/iap/RevenueCatService');
                 await revenueCatService.initialize(profile.id);
@@ -211,7 +211,6 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                   console.warn('RevenueCat initialization failed (anonymous):', error);
                 }
               }
-              */
             }
           }
         } catch (error) {
@@ -234,8 +233,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
           // Initialize/update RevenueCat for logged in user (lazy-loaded)
           if (profile?.id) {
-            // TEMPORARY: Disable RevenueCat
-            /*
+            // TEMPORARY: Re-enabled to test stability without AdMob
             try {
               const { revenueCatService } = await import('../src/services/iap/RevenueCatService');
               if (!revenueCatService.isInitialized()) {
@@ -247,7 +245,6 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                 console.warn('RevenueCat initialization failed (logged in):', error);
               }
             }
-            */
           }
         } else {
           useMonetizationStore.getState().reset();
