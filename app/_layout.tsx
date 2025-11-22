@@ -88,7 +88,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             const { adManager } = await import('../src/services/ads/AdManager');
             await adManager.initialize();
           } catch (error) {
-            // Silent fail - non-critical for app startup
+          // Silent fail - non-critical for app startup
             if (__DEV__) {
               console.warn('Ad Manager initialization failed:', error);
             }
@@ -209,8 +209,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                 // Silent fail
                 if (__DEV__) {
                   console.warn('RevenueCat initialization failed (anonymous):', error);
-                }
               }
+            }
             }
             */
           }
@@ -238,7 +238,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             try {
               const { revenueCatService } = await import('../src/services/iap/RevenueCatService');
               if (!revenueCatService.isInitialized()) {
-                await revenueCatService.initialize(profile.id);
+              await revenueCatService.initialize(profile.id);
               }
             } catch (error) {
               // Silent fail

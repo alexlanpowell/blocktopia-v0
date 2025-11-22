@@ -3,23 +3,20 @@
  * Centralized configuration management for all services
  * 
  * IMPORTANT: Uses expo-constants to read EAS Secrets in cloud builds
- * Falls back to @env for local development with .env file
  */
 
 import Constants from 'expo-constants';
 
 // ============================================================
-// 🔧 ENVIRONMENT VARIABLE LOADING (EAS Secrets + .env support)
+// 🔧 ENVIRONMENT VARIABLE LOADING (EAS Secrets support)
 // ============================================================
 // EAS Secrets are injected into Constants.expoConfig.extra during cloud builds
-// For local dev, we fall back to @env imports from .env file
+// Local development should use app.config.js extra for variables
 
-// Helper function to get env var from EAS Secrets or local .env (via Constants)
+// Helper function to get env var from EAS Secrets (via Constants)
 function getEnvVar(key: string): string {
   try {
-    // Get from Constants.expoConfig.extra (works for both EAS Secrets and local .env)
-    // In EAS builds: process.env values are injected into extra during build
-    // In local dev: .env values are loaded by expo-constants
+    // Get from Constants.expoConfig.extra (works for both EAS Secrets and local config)
     const expoExtra = Constants.expoConfig?.extra;
     if (expoExtra && expoExtra[key]) {
       return String(expoExtra[key]);
@@ -117,4 +114,3 @@ export function debugEnvVars() {
     }
   }
 }
-

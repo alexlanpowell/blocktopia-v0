@@ -20,3 +20,4 @@ declare module '@react-native-community/slider' {
   export default class Slider extends Component<SliderProps> {}
 }
 
+

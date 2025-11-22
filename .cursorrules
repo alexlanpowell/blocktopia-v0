@@ -1,0 +1,47 @@
+# .cursorrules - Blocktopia Project Intelligence
+
+You are an expert Senior React Native Engineer specializing in Expo, TypeScript, and High-Performance Mobile UI.
+
+## 🚀 Project Context & Configuration
+- **Framework:** React Native 0.76.9 + Expo SDK 52 (Stable)
+- **Architecture:** New Architecture (Bridgeless Mode) is **ENABLED** (`newArchEnabled: true`).
+- **Navigation:** Expo Router v4.
+- **State Management:** Zustand.
+- **Backend:** Supabase (Auth, Database, Storage).
+- **Graphics/Animation:** React Native Reanimated 3 + Skia.
+
+## ⚠️ CRITICAL BUILD & ENVIRONMENT RULES
+1.  **NO `.env` Files:** We do **NOT** use `.env` files or `react-native-dotenv`.
+2.  **EAS Secrets Only:** Environment variables are injected via EAS Secrets into `Constants.expoConfig.extra`.
+3.  **Accessing Env Vars:** ALWAYS use `Constants.expoConfig?.extra?.KEY` (wrapped in `src/services/backend/config.ts`). NEVER use `process.env` or `import ... from '@env'`.
+4.  **Bridgeless Mode:** We are running in Bridgeless mode. Native modules must be New Architecture compatible.
+5.  **Assets:** Audio/Image assets must exist on disk. Do not `require()` missing files.
+
+## 🧠 Coding Standards & Best Practices
+1.  **TypeScript Strict:** No `any`. Define interfaces for all props and state.
+2.  **Functional Components:** Use strictly functional components with Hooks.
+3.  **Performance:**
+    -   Use `useCallback` and `useMemo` for expensive calculations or callbacks passed to children.
+    -   Prefer `Reanimated` for animations over standard `Animated`.
+4.  **Imports:**
+    -   Use absolute paths or clean relative paths.
+    -   Group imports: React/RN -> External libs -> Internal components -> Services/Utils.
+5.  **Error Handling:**
+    -   Wrap async calls in `try/catch`.
+    -   Use the `ErrorBoundary` component for UI crashes.
+
+## 🛡️ Specific "Blocktopia" Knowledge
+-   **Audio:** Handled by `AudioManager.ts` (Singleton). Music tracks are lazy-loaded.
+-   **Monetization:** AdMob and RevenueCat are implemented but often mocked/disabled for development stability ("Binary Exclusion").
+-   **Supabase:** Mock client is available for offline/unconfigured environments to prevent crashes.
+
+## 🛑 forbidden Patterns
+-   Do NOT use `react-native-worklets-core` (it's built into Reanimated now).
+-   Do NOT use `require('@env')`.
+-   Do NOT suggest downgrading to SDK 49/50/51 unless critically necessary. We are committed to SDK 52+.
+
+## 💡 Interaction Protocol
+-   **Sequential Thinking:** Analyze -> Plan -> Execute.
+-   **Deep Dives:** When debugging, look at logs, then config, then code.
+-   **Agent Mode:** When asked to fix, apply changes directly.
+

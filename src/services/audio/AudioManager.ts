@@ -93,16 +93,17 @@ class AudioManager {
     const sounds: Partial<Record<SoundEffect, any>> = {};
     
     // Try to load each sound effect, silently skip if file doesn't exist
-    try { sounds[SoundEffect.PIECE_PICKUP] = require('../../../assets/sounds/piece_pickup.mp3'); } catch {}
+    // MISSING ASSETS: Commented out to prevent build/runtime errors
+    // try { sounds[SoundEffect.PIECE_PICKUP] = require('../../../assets/sounds/piece_pickup.mp3'); } catch {} 
     try { sounds[SoundEffect.PIECE_PLACE] = require('../../../assets/sounds/piece_place.mp3'); } catch {}
-    try { sounds[SoundEffect.PIECE_INVALID] = require('../../../assets/sounds/piece_invalid.mp3'); } catch {}
+    // try { sounds[SoundEffect.PIECE_INVALID] = require('../../../assets/sounds/piece_invalid.mp3'); } catch {} 
     try { sounds[SoundEffect.LINE_CLEAR] = require('../../../assets/sounds/line_clear.mp3'); } catch {}
     try { sounds[SoundEffect.MULTI_LINE_CLEAR] = require('../../../assets/sounds/multi_line_clear.mp3'); } catch {}
     try { sounds[SoundEffect.GAME_OVER] = require('../../../assets/sounds/game_over.mp3'); } catch {}
     try { sounds[SoundEffect.BUTTON_TAP] = require('../../../assets/sounds/button_tap.mp3'); } catch {}
     try { sounds[SoundEffect.POWER_UP_USE] = require('../../../assets/sounds/power_up.mp3'); } catch {}
     try { sounds[SoundEffect.PURCHASE_SUCCESS] = require('../../../assets/sounds/purchase.mp3'); } catch {}
-    try { sounds[SoundEffect.GEM_COLLECT] = require('../../../assets/sounds/gem.mp3'); } catch {}
+    // try { sounds[SoundEffect.GEM_COLLECT] = require('../../../assets/sounds/gem.mp3'); } catch {} 
     
     return sounds;
   }
@@ -150,7 +151,8 @@ class AudioManager {
     const sound = this.soundEffects.get(effect);
     if (!sound) {
       if (__DEV__) {
-        console.warn(`Sound effect ${effect} not found`);
+        // Only warn for non-missing effects (optional check logic could be added)
+        // console.warn(`Sound effect ${effect} not found`);
       }
       return;
     }
@@ -430,4 +432,3 @@ class AudioManager {
 }
 
 export default AudioManager.getInstance();
-

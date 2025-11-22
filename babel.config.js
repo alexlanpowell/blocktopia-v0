@@ -4,15 +4,9 @@ module.exports = function (api) {
     presets: ['babel-preset-expo'],
     plugins: [
       // Environment variables (MUST be first for proper loading)
-      ['module:react-native-dotenv', {
-        moduleName: '@env',
-        path: '.env',
-        safe: false,
-        allowUndefined: true,
-      }],
+      // ['module:react-native-dotenv'] removed - using expo-constants instead
       'react-native-reanimated/plugin',
       // expo-router is already included in babel-preset-expo (SDK 50+)
     ],
   };
 };
-

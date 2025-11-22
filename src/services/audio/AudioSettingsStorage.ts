@@ -7,7 +7,6 @@
 import { MMKV } from 'react-native-mmkv';
 import { getSupabase } from '../backend/SupabaseClient';
 import { useMonetizationStore } from '../../store/monetizationStore';
-import AudioManager from './AudioManager';
 
 export interface AudioSettings {
   musicVolume: number; // 0.0 - 1.0
@@ -68,6 +67,9 @@ class AudioSettingsStorage {
   async loadSettings(): Promise<AudioSettings> {
     const storage = this.getStorage();
     
+    // Dynamically import AudioManager to avoid circular dependency
+    const { default: AudioManager } = await import('./AudioManager');
+    
     // Load settings from MMKV if available, otherwise use defaults
     const settings: AudioSettings = storage ? {
       musicVolume: storage.getNumber('music_volume') ?? DEFAULT_SETTINGS.musicVolume,
@@ -105,6 +107,9 @@ class AudioSettingsStorage {
    */
   async saveSettings(settings: Partial<AudioSettings>): Promise<void> {
     const storage = this.getStorage();
+    
+    // Dynamically import AudioManager to avoid circular dependency
+    const { default: AudioManager } = await import('./AudioManager');
     
     // If MMKV not available, still update AudioManager in-memory
     if (!storage) {

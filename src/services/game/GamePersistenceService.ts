@@ -188,22 +188,41 @@ export class GamePersistenceService {
       // Deactivate other sessions
       await supabase.rpc('deactivate_other_sessions', { p_user_id: userId });
 
-      // Upsert current session
-      const { error } = await supabase
+      // Check for existing active session to avoid ON CONFLICT issues with partial indexes
+      const { data: existingSession } = await supabase
         .from('game_sessions')
-        .upsert({
-          user_id: userId,
-          board_state: serialized.board,
-          current_pieces: serialized.currentPieces,
-          score: serialized.score,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,is_active',
-        });
+        .select('id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
 
-      if (error) {
-        throw error;
+      if (existingSession) {
+        // Update existing active session
+        const { error } = await supabase
+          .from('game_sessions')
+          .update({
+            board_state: serialized.board,
+            current_pieces: serialized.currentPieces,
+            score: serialized.score,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingSession.id);
+          
+        if (error) throw error;
+      } else {
+        // Insert new active session
+        const { error } = await supabase
+          .from('game_sessions')
+          .insert({
+            user_id: userId,
+            board_state: serialized.board,
+            current_pieces: serialized.currentPieces,
+            score: serialized.score,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          });
+          
+        if (error) throw error;
       }
 
       if (__DEV__) {
