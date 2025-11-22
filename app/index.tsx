@@ -109,8 +109,8 @@ export default function IndexScreen() {
     router.push('/game');
   };
 
-  // Complex secret sequence: hold logo (5s) → version → logo → version → subtitle → hold version (5s)
-  const SECRET_CODE = ['version', 'logo', 'version', 'subtitle'];
+  // Complex secret sequence: hold logo (5s) → version → logo → version → subtitle → version
+  const SECRET_CODE = ['version', 'logo', 'version', 'subtitle', 'version'];
 
   const handleLogoLongPress = () => {
     // First step: hold logo to enable the sequence
@@ -133,12 +133,14 @@ export default function IndexScreen() {
         console.log(`🔐 Secret sequence: [${newSeq.join(' → ')}]`);
       }
       
-      // Check if tap sequence matches
+      // Check if tap sequence matches - unlock immediately
       if (JSON.stringify(newSeq) === JSON.stringify(SECRET_CODE)) {
         if (__DEV__) {
-          console.log('✅ Tap sequence complete! Now hold version for 5 seconds...');
+          console.log('🔓 Admin dashboard unlocked! Full sequence completed.');
         }
-        return newSeq; // Keep sequence for hold validation
+        setShowAdmin(true);
+        setVersionHoldComplete(false);
+        return [];
       }
       
       return newSeq;
@@ -150,16 +152,7 @@ export default function IndexScreen() {
   };
 
   const handleVersionLongPress = () => {
-    // Check if logo was held AND tap sequence was completed
-    if (versionHoldComplete && JSON.stringify(secretSequence) === JSON.stringify(SECRET_CODE)) {
-      if (__DEV__) {
-        console.log('🔓 Admin dashboard unlocked! Full sequence completed.');
-      }
-      setShowAdmin(true);
-      // Reset state
-      setSecretSequence([]);
-      setVersionHoldComplete(false);
-    }
+    // No longer needed - sequence completes on final tap
   };
 
   const handleLogoTap = () => {
@@ -364,8 +357,6 @@ export default function IndexScreen() {
         {/* Version Info / Debug Trigger */}
         <TouchableOpacity 
           onPress={handleVersionTap}
-          onLongPress={handleVersionLongPress}
-          delayLongPress={5000}
           activeOpacity={1}
           style={{ padding: 20, marginTop: 20 }}
         >
