@@ -36,6 +36,7 @@ class PurchaseManager {
     try {
       console.log(`Purchasing gem pack: ${productId}`);
 
+      /*
       // Get product details
       const product = getProductById(productId);
       if (!product) {
@@ -81,9 +82,13 @@ class PurchaseManager {
       });
 
       return { success: true, productId: productIdentifier };
+      */
+     
+      return { success: false, error: 'MOCKED' };
     } catch (error: any) {
       console.error('Gem pack purchase error:', error);
 
+      /*
       // Handle user cancellation
       const { default: Purchases } = await import('react-native-purchases');
       
@@ -100,6 +105,7 @@ class PurchaseManager {
         );
         return { success: false, error: 'network_error' };
       }
+      */
 
       // Show generic error
       Alert.alert(
@@ -118,6 +124,7 @@ class PurchaseManager {
     try {
       console.log('Purchasing remove ads');
 
+      /*
       const offerings = await revenueCatService.getOfferings();
       const packageToPurchase = offerings.current?.availablePackages.find(
         p => p.product.identifier === productId
@@ -152,14 +159,18 @@ class PurchaseManager {
       }
 
       return { success: false, error: 'entitlement_not_found' };
+      */
+      return { success: false, error: 'MOCKED' };
     } catch (error: any) {
       console.error('Remove ads purchase error:', error);
 
+      /*
       const { default: Purchases } = await import('react-native-purchases');
 
       if (error.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
         return { success: false, error: 'cancelled' };
       }
+      */
 
       Alert.alert('Purchase Failed', error.message || 'Please try again.');
       return { success: false, error: error.message };
@@ -173,6 +184,7 @@ class PurchaseManager {
     try {
       console.log('Purchasing subscription:', productId);
 
+      /*
       const offerings = await revenueCatService.getOfferings();
       const packageToPurchase = offerings.current?.availablePackages.find(
         p => p.product.identifier === productId
@@ -211,14 +223,18 @@ class PurchaseManager {
       }
 
       return { success: false, error: 'entitlement_not_found' };
+      */
+      return { success: false, error: 'MOCKED' };
     } catch (error: any) {
       console.error('Subscription purchase error:', error);
 
+      /*
       const { default: Purchases } = await import('react-native-purchases');
 
       if (error.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
         return { success: false, error: 'cancelled' };
       }
+      */
 
       Alert.alert('Purchase Failed', error.message || 'Please try again.');
       return { success: false, error: error.message };
@@ -232,6 +248,7 @@ class PurchaseManager {
     try {
       console.log('Restoring purchases...');
 
+      /*
       const customerInfo = await revenueCatService.restorePurchases();
 
       let restoredItems: string[] = [];
@@ -266,6 +283,10 @@ class PurchaseManager {
         );
         return false;
       }
+      */
+     
+      Alert.alert('Restore Unavailable', 'This feature is temporarily mocked.');
+      return false;
     } catch (error: any) {
       console.error('Restore error:', error);
       Alert.alert(
@@ -305,4 +326,3 @@ class PurchaseManager {
 
 export const purchaseManager = PurchaseManager.getInstance();
 export { PurchaseManager };
-

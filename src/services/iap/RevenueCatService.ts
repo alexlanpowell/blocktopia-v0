@@ -6,12 +6,20 @@
 import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../backend/config';
 import { analyticsService } from '../analytics/AnalyticsService';
+/*
 import type { 
   PurchasesOfferings, 
   PurchasesPackage, 
   CustomerInfo, 
   PurchasesStoreProduct 
 } from 'react-native-purchases';
+*/
+
+// Mock types
+type PurchasesOfferings = any;
+type PurchasesPackage = any;
+type CustomerInfo = any;
+type PurchasesStoreProduct = any;
 
 class RevenueCatService {
   private static instance: RevenueCatService | null = null;
@@ -37,8 +45,9 @@ class RevenueCatService {
     }
 
     try {
-      console.log('🛒 Initializing RevenueCat...');
+      console.log('🛒 Initializing RevenueCat... (MOCKED/DISABLED)');
 
+      /*
       // Get API key for platform
       const apiKey = Platform.select({
         ios: ENV_CONFIG.REVENUECAT_API_KEY_IOS,
@@ -64,10 +73,11 @@ class RevenueCatService {
 
       // Load offerings
       this.offerings = await Purchases.getOfferings();
+      */
       
       this.initialized = true;
       // Logging handled by app initialization
-      console.log(`Available offerings: ${Object.keys(this.offerings.all).length}`);
+      // console.log(`Available offerings: ${Object.keys(this.offerings.all).length}`);
     } catch (error) {
       console.error('❌ Failed to initialize RevenueCat:', error);
       throw error;
@@ -82,10 +92,14 @@ class RevenueCatService {
       throw new Error('RevenueCat not initialized');
     }
 
+    return { current: null, all: {} };
+
+    /*
     // Refresh offerings
     const { default: Purchases } = await import('react-native-purchases');
     this.offerings = await Purchases.getOfferings();
     return this.offerings;
+    */
   }
 
   /**
@@ -98,7 +112,10 @@ class RevenueCatService {
     if (!this.initialized) {
       throw new Error('RevenueCat not initialized');
     }
+    
+    throw new Error('Purchases disabled');
 
+    /*
     try {
       console.log(`Purchasing package: ${packageToPurchase.product.identifier}`);
       
@@ -127,6 +144,7 @@ class RevenueCatService {
 
       throw error;
     }
+    */
   }
 
   /**
@@ -137,6 +155,9 @@ class RevenueCatService {
       throw new Error('RevenueCat not initialized');
     }
 
+    return { entitlements: { active: {} } };
+
+    /*
     try {
       console.log('Restoring purchases...');
       const { default: Purchases } = await import('react-native-purchases');
@@ -151,6 +172,7 @@ class RevenueCatService {
       analyticsService.logEvent('iap_restore_failed');
       throw error;
     }
+    */
   }
 
   /**
@@ -160,9 +182,13 @@ class RevenueCatService {
     if (!this.initialized) {
       throw new Error('RevenueCat not initialized');
     }
+    
+    return { entitlements: { active: {} } };
 
+    /*
     const { default: Purchases } = await import('react-native-purchases');
     return await Purchases.getCustomerInfo();
+    */
   }
 
   /**
@@ -200,8 +226,12 @@ class RevenueCatService {
       throw new Error('RevenueCat not initialized');
     }
 
+    return [];
+
+    /*
     const { default: Purchases } = await import('react-native-purchases');
     return await Purchases.getProducts(productIds);
+    */
   }
 
   /**
@@ -210,12 +240,14 @@ class RevenueCatService {
   async setAttributes(attributes: Record<string, string | null>): Promise<void> {
     if (!this.initialized) return;
 
+    /*
     try {
       const { default: Purchases } = await import('react-native-purchases');
       await Purchases.setAttributes(attributes);
     } catch (error) {
       console.error('Error setting attributes:', error);
     }
+    */
   }
 
   /**
@@ -225,7 +257,10 @@ class RevenueCatService {
     if (!this.initialized) {
       throw new Error('RevenueCat not initialized');
     }
+    
+    return { customerInfo: { entitlements: { active: {} } }, created: false };
 
+    /*
     try {
       const { default: Purchases } = await import('react-native-purchases');
       const { customerInfo, created } = await Purchases.logIn(userId);
@@ -235,6 +270,7 @@ class RevenueCatService {
       console.error('Login error:', error);
       throw error;
     }
+    */
   }
 
   /**
@@ -244,7 +280,10 @@ class RevenueCatService {
     if (!this.initialized) {
       throw new Error('RevenueCat not initialized');
     }
+    
+    return { entitlements: { active: {} } };
 
+    /*
     try {
       const { default: Purchases } = await import('react-native-purchases');
       const customerInfo = await Purchases.logOut();
@@ -254,6 +293,7 @@ class RevenueCatService {
       console.error('Logout error:', error);
       throw error;
     }
+    */
   }
 
   /**
@@ -273,4 +313,3 @@ class RevenueCatService {
 
 export const revenueCatService = RevenueCatService.getInstance();
 export { RevenueCatService };
-

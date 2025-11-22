@@ -28,6 +28,7 @@ class BannerAdService {
   }
 
   async initialize(): Promise<void> {
+    /*
     const { TestIds } = await import('react-native-google-mobile-ads');
 
     // Game banner ad unit (default/backward compatible)
@@ -47,19 +48,13 @@ class BannerAdService {
           android: ENV_CONFIG.ADMOB_BANNER_AD_UNIT_HOME_ANDROID,
           default: TestIds.BANNER,
         }) || TestIds.BANNER;
+    */
 
     if (__DEV__) {
-      console.log('BannerAdService initialized');
-      console.log('  Game banner:', this.gameAdUnitId);
-      console.log('  Home banner:', this.homeAdUnitId);
+      console.log('BannerAdService initialized (MOCKED/DISABLED)');
+      // console.log('  Game banner:', this.gameAdUnitId);
+      // console.log('  Home banner:', this.homeAdUnitId);
     }
-  }
-
-  static getInstance(): BannerAdService {
-    if (!BannerAdService.instance) {
-      BannerAdService.instance = new BannerAdService();
-    }
-    return BannerAdService.instance;
   }
 
   /**
@@ -135,4 +130,3 @@ class BannerAdService {
 
 export const bannerAdService = BannerAdService.getInstance();
 export { BannerAdService };
-

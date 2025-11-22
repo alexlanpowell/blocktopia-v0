@@ -7,7 +7,9 @@ import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../backend/config';
 import { adManager } from './AdManager';
 import { analyticsService } from '../analytics/AnalyticsService';
-import type { InterstitialAd as InterstitialAdType } from 'react-native-google-mobile-ads';
+// import type { InterstitialAd as InterstitialAdType } from 'react-native-google-mobile-ads';
+
+type InterstitialAdType = any;
 
 class InterstitialAdService {
   private static instance: InterstitialAdService | null = null;
@@ -34,6 +36,7 @@ class InterstitialAdService {
   }
 
   async initialize(): Promise<void> {
+    /*
     const { TestIds } = await import('react-native-google-mobile-ads');
 
     // Use test IDs in development, real IDs in production
@@ -44,13 +47,15 @@ class InterstitialAdService {
           android: ENV_CONFIG.ADMOB_INTERSTITIAL_AD_UNIT_ANDROID,
           default: TestIds.INTERSTITIAL,
         }) || TestIds.INTERSTITIAL;
-
-    console.log('InterstitialAdService initialized with unit ID:', this.adUnitId);
+    */
+    
+    console.log('InterstitialAdService initialized (MOCKED)');
     await this.initializeAd();
   }
 
   private async initializeAd(): Promise<void> {
     try {
+      /*
       const { InterstitialAd, AdEventType } = await import('react-native-google-mobile-ads');
 
       this.interstitial = InterstitialAd.createForAdRequest(this.adUnitId, {
@@ -88,6 +93,7 @@ class InterstitialAdService {
 
       // Preload the first ad
       this.loadAd();
+      */
     } catch (error) {
       console.error('Failed to initialize interstitial ad:', error);
     }
@@ -100,8 +106,9 @@ class InterstitialAdService {
 
     try {
       this.loading = true;
-      console.log('Loading interstitial ad...');
-      await this.interstitial?.load();
+      console.log('Loading interstitial ad... (MOCKED)');
+      // await this.interstitial?.load();
+      this.loading = false;
     } catch (error) {
       console.error('Failed to load interstitial ad:', error);
       this.loading = false;
@@ -207,4 +214,3 @@ class InterstitialAdService {
 
 export const interstitialAdService = InterstitialAdService.getInstance();
 export { InterstitialAdService };
-

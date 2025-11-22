@@ -7,7 +7,9 @@ import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../backend/config';
 import { adManager } from './AdManager';
 import { analyticsService } from '../analytics/AnalyticsService';
-import type { RewardedAd as RewardedAdType } from 'react-native-google-mobile-ads';
+// import type { RewardedAd as RewardedAdType } from 'react-native-google-mobile-ads';
+
+type RewardedAdType = any;
 
 class RewardedAdService {
   private static instance: RewardedAdService | null = null;
@@ -28,6 +30,7 @@ class RewardedAdService {
   }
 
   async initialize(): Promise<void> {
+    /*
     const { TestIds } = await import('react-native-google-mobile-ads');
 
     // Use test IDs in development, real IDs in production
@@ -38,13 +41,15 @@ class RewardedAdService {
           android: ENV_CONFIG.ADMOB_REWARDED_AD_UNIT_ANDROID,
           default: TestIds.REWARDED,
         }) || TestIds.REWARDED;
+    */
 
-    console.log('RewardedAdService initialized with unit ID:', this.adUnitId);
+    console.log('RewardedAdService initialized (MOCKED)');
     await this.initializeAd();
   }
 
   private async initializeAd(): Promise<void> {
     try {
+      /*
       const { RewardedAd, RewardedAdEventType } = await import('react-native-google-mobile-ads');
 
       this.rewarded = RewardedAd.createForAdRequest(this.adUnitId, {
@@ -72,6 +77,7 @@ class RewardedAdService {
 
       // Preload the first ad
       this.loadAd();
+      */
     } catch (error) {
       console.error('Failed to initialize rewarded ad:', error);
     }
@@ -84,8 +90,9 @@ class RewardedAdService {
 
     try {
       this.loading = true;
-      console.log('Loading rewarded ad...');
-      await this.rewarded?.load();
+      console.log('Loading rewarded ad... (MOCKED)');
+      // await this.rewarded?.load();
+      this.loading = false;
     } catch (error) {
       console.error('Failed to load rewarded ad:', error);
       this.loading = false;
@@ -115,6 +122,7 @@ class RewardedAdService {
       return { watched: false, error: 'ad_not_ready' };
     }
 
+    /*
     // Import RewardedAdEventType for runtime usage
     const { RewardedAdEventType } = await import('react-native-google-mobile-ads');
 
@@ -158,6 +166,8 @@ class RewardedAdService {
         clearTimeout(timeoutId);
       }
     });
+    */
+    return { watched: false, error: 'mocked' };
   }
 
   isReady(): boolean {
@@ -167,4 +177,3 @@ class RewardedAdService {
 
 export const rewardedAdService = RewardedAdService.getInstance();
 export { RewardedAdService };
-

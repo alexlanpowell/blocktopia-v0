@@ -33,8 +33,9 @@ class AdManager {
 
     try {
       this.initializing = true;
-      console.log('🎯 Initializing AdMob...');
+      console.log('🎯 Initializing AdMob... (MOCKED/DISABLED)');
 
+      /*
       // Deep lazy load to prevent native module crash on startup
       const { default: mobileAds, MaxAdContentRating } = await import('react-native-google-mobile-ads');
 
@@ -46,6 +47,7 @@ class AdManager {
         tagForChildDirectedTreatment: false,
         tagForUnderAgeOfConsent: false,
       });
+      */
 
       this.initialized = true;
       // Logging handled by app initialization
@@ -80,4 +82,3 @@ class AdManager {
 
 export const adManager = AdManager.getInstance();
 export { AdManager };
-

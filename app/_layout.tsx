@@ -80,6 +80,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         })
       );
 
+      /*
       // Initialize Ad Manager (non-blocking, lazy loaded to prevent native module crash)
       initPromises.push(
         (async () => {
@@ -94,6 +95,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           }
         })()
       );
+      */
 
       // Wait for core services
       await Promise.all(initPromises);
@@ -136,6 +138,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           });
         }
 
+        /*
         // Initialize RevenueCat with user ID (non-blocking, lazy-loaded)
         if (profile?.id) {
           try {
@@ -152,6 +155,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
             }
           }
         }
+        */
       } else {
         // No existing session - auto-create anonymous account for tracking
         if (__DEV__) {
@@ -195,6 +199,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
               });
             }
             
+            /*
             // Initialize RevenueCat with anonymous user ID (non-blocking, lazy-loaded)
             if (profile?.id) {
               try {
@@ -207,6 +212,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
                 }
               }
             }
+            */
           }
         } catch (error) {
           // Continue anyway - app can work without account (offline mode)
@@ -226,6 +232,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           await loadFromBackend();
           analyticsService.logSignIn('session_restore');
 
+          /*
           // Initialize/update RevenueCat for logged in user (lazy-loaded)
           if (profile?.id) {
             try {
@@ -240,6 +247,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
               }
             }
           }
+          */
         } else {
           useMonetizationStore.getState().reset();
         }
