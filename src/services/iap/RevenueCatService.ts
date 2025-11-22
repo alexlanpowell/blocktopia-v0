@@ -3,16 +3,15 @@
  * Wrapper around RevenueCat SDK for purchases, subscriptions, and entitlements
  */
 
-import Purchases, {
-  PurchasesOfferings,
-  PurchasesPackage,
-  CustomerInfo,
-  PurchasesStoreProduct,
-  LOG_LEVEL,
-} from 'react-native-purchases';
 import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../backend/config';
 import { analyticsService } from '../analytics/AnalyticsService';
+import type { 
+  PurchasesOfferings, 
+  PurchasesPackage, 
+  CustomerInfo, 
+  PurchasesStoreProduct 
+} from 'react-native-purchases';
 
 class RevenueCatService {
   private static instance: RevenueCatService | null = null;
@@ -53,6 +52,8 @@ class RevenueCatService {
       }
 
       // Configure SDK
+      const { default: Purchases, LOG_LEVEL } = await import('react-native-purchases');
+      
       Purchases.setLogLevel(ENV_CONFIG.isDevelopment ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
       
       // Configure with user ID
@@ -82,6 +83,7 @@ class RevenueCatService {
     }
 
     // Refresh offerings
+    const { default: Purchases } = await import('react-native-purchases');
     this.offerings = await Purchases.getOfferings();
     return this.offerings;
   }
@@ -100,6 +102,7 @@ class RevenueCatService {
     try {
       console.log(`Purchasing package: ${packageToPurchase.product.identifier}`);
       
+      const { default: Purchases } = await import('react-native-purchases');
       const { customerInfo, productIdentifier } = await Purchases.purchasePackage(packageToPurchase);
       
       console.log('✅ Purchase successful:', productIdentifier);
@@ -136,6 +139,7 @@ class RevenueCatService {
 
     try {
       console.log('Restoring purchases...');
+      const { default: Purchases } = await import('react-native-purchases');
       const customerInfo = await Purchases.restorePurchases();
       
       console.log('✅ Purchases restored');
@@ -157,6 +161,7 @@ class RevenueCatService {
       throw new Error('RevenueCat not initialized');
     }
 
+    const { default: Purchases } = await import('react-native-purchases');
     return await Purchases.getCustomerInfo();
   }
 
@@ -195,6 +200,7 @@ class RevenueCatService {
       throw new Error('RevenueCat not initialized');
     }
 
+    const { default: Purchases } = await import('react-native-purchases');
     return await Purchases.getProducts(productIds);
   }
 
@@ -205,6 +211,7 @@ class RevenueCatService {
     if (!this.initialized) return;
 
     try {
+      const { default: Purchases } = await import('react-native-purchases');
       await Purchases.setAttributes(attributes);
     } catch (error) {
       console.error('Error setting attributes:', error);
@@ -220,6 +227,7 @@ class RevenueCatService {
     }
 
     try {
+      const { default: Purchases } = await import('react-native-purchases');
       const { customerInfo, created } = await Purchases.logIn(userId);
       console.log(`✅ Logged in as ${userId}${created ? ' (new customer)' : ''}`);
       return { customerInfo, created };
@@ -238,6 +246,7 @@ class RevenueCatService {
     }
 
     try {
+      const { default: Purchases } = await import('react-native-purchases');
       const customerInfo = await Purchases.logOut();
       console.log('✅ Logged out');
       return customerInfo;

@@ -9,7 +9,7 @@ import { virtualCurrencyManager, GemSource } from '../currency/VirtualCurrencyMa
 import { useMonetizationStore } from '../../store/monetizationStore';
 import { analyticsService } from '../analytics/AnalyticsService';
 import { getProductById, getTotalGems } from './ProductCatalog';
-import Purchases from 'react-native-purchases';
+// import Purchases from 'react-native-purchases'; // Deep lazy load instead
 
 interface PurchaseResult {
   success: boolean;
@@ -85,6 +85,8 @@ class PurchaseManager {
       console.error('Gem pack purchase error:', error);
 
       // Handle user cancellation
+      const { default: Purchases } = await import('react-native-purchases');
+      
       if (error.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
         console.log('Purchase cancelled by user');
         return { success: false, error: 'cancelled' };
@@ -153,6 +155,8 @@ class PurchaseManager {
     } catch (error: any) {
       console.error('Remove ads purchase error:', error);
 
+      const { default: Purchases } = await import('react-native-purchases');
+
       if (error.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
         return { success: false, error: 'cancelled' };
       }
@@ -209,6 +213,8 @@ class PurchaseManager {
       return { success: false, error: 'entitlement_not_found' };
     } catch (error: any) {
       console.error('Subscription purchase error:', error);
+
+      const { default: Purchases } = await import('react-native-purchases');
 
       if (error.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
         return { success: false, error: 'cancelled' };

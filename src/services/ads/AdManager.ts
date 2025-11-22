@@ -3,7 +3,6 @@
  * Handles initialization and ad-free user checks
  */
 
-import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 import { useMonetizationStore } from '../../store/monetizationStore';
 import { ENV_CONFIG } from '../backend/config';
 
@@ -35,6 +34,9 @@ class AdManager {
     try {
       this.initializing = true;
       console.log('🎯 Initializing AdMob...');
+
+      // Deep lazy load to prevent native module crash on startup
+      const { default: mobileAds, MaxAdContentRating } = await import('react-native-google-mobile-ads');
 
       await mobileAds().initialize();
 

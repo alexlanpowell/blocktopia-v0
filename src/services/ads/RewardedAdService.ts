@@ -3,35 +3,21 @@
  * Users watch an ad to get a second chance when game is over (clears 4 random rows)
  */
 
-import {
-  RewardedAd,
-  RewardedAdEventType,
-  TestIds,
-} from 'react-native-google-mobile-ads';
 import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../backend/config';
 import { adManager } from './AdManager';
 import { analyticsService } from '../analytics/AnalyticsService';
+import type { RewardedAd as RewardedAdType } from 'react-native-google-mobile-ads';
 
 class RewardedAdService {
   private static instance: RewardedAdService | null = null;
-  private rewarded: RewardedAd | null = null;
+  private rewarded: RewardedAdType | null = null;
   private loaded: boolean = false;
   private loading: boolean = false;
-  private adUnitId: string;
+  private adUnitId: string = '';
 
   private constructor() {
-    // Use test IDs in development, real IDs in production
-    this.adUnitId = ENV_CONFIG.isDevelopment
-      ? TestIds.REWARDED
-      : Platform.select({
-          ios: ENV_CONFIG.ADMOB_REWARDED_AD_UNIT_IOS,
-          android: ENV_CONFIG.ADMOB_REWARDED_AD_UNIT_ANDROID,
-          default: TestIds.REWARDED,
-        });
-
-    console.log('RewardedAdService initialized with unit ID:', this.adUnitId);
-    this.initializeAd();
+     // Wait for lazy initialization
   }
 
   static getInstance(): RewardedAdService {
@@ -41,8 +27,26 @@ class RewardedAdService {
     return RewardedAdService.instance;
   }
 
-  private initializeAd(): void {
+  async initialize(): Promise<void> {
+    const { TestIds } = await import('react-native-google-mobile-ads');
+
+    // Use test IDs in development, real IDs in production
+    this.adUnitId = ENV_CONFIG.isDevelopment
+      ? TestIds.REWARDED
+      : Platform.select({
+          ios: ENV_CONFIG.ADMOB_REWARDED_AD_UNIT_IOS,
+          android: ENV_CONFIG.ADMOB_REWARDED_AD_UNIT_ANDROID,
+          default: TestIds.REWARDED,
+        }) || TestIds.REWARDED;
+
+    console.log('RewardedAdService initialized with unit ID:', this.adUnitId);
+    await this.initializeAd();
+  }
+
+  private async initializeAd(): Promise<void> {
     try {
+      const { RewardedAd, RewardedAdEventType } = await import('react-native-google-mobile-ads');
+
       this.rewarded = RewardedAd.createForAdRequest(this.adUnitId, {
         requestNonPersonalizedAdsOnly: false,
       });
@@ -110,6 +114,9 @@ class RewardedAdService {
       await this.loadAd();
       return { watched: false, error: 'ad_not_ready' };
     }
+
+    // Import RewardedAdEventType for runtime usage
+    const { RewardedAdEventType } = await import('react-native-google-mobile-ads');
 
     return new Promise((resolve) => {
       let resolved = false;

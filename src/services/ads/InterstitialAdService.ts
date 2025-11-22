@@ -3,22 +3,18 @@
  * Shows full-screen ads every N games for non-premium users
  */
 
-import {
-  InterstitialAd,
-  AdEventType,
-  TestIds,
-} from 'react-native-google-mobile-ads';
 import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../backend/config';
 import { adManager } from './AdManager';
 import { analyticsService } from '../analytics/AnalyticsService';
+import type { InterstitialAd as InterstitialAdType } from 'react-native-google-mobile-ads';
 
 class InterstitialAdService {
   private static instance: InterstitialAdService | null = null;
-  private interstitial: InterstitialAd | null = null;
+  private interstitial: InterstitialAdType | null = null;
   private loaded: boolean = false;
   private loading: boolean = false;
-  private adUnitId: string;
+  private adUnitId: string = ''; // Initialize in initializeAd()
   
   // Ad frequency configuration
   private gamesPlayedSinceLastAd: number = 0;
@@ -27,17 +23,7 @@ class InterstitialAdService {
   private lastAdTimestamp: number = 0;
 
   private constructor() {
-    // Use test IDs in development, real IDs in production
-    this.adUnitId = ENV_CONFIG.isDevelopment
-      ? TestIds.INTERSTITIAL
-      : Platform.select({
-          ios: ENV_CONFIG.ADMOB_INTERSTITIAL_AD_UNIT_IOS,
-          android: ENV_CONFIG.ADMOB_INTERSTITIAL_AD_UNIT_ANDROID,
-          default: TestIds.INTERSTITIAL,
-        });
-
-    console.log('InterstitialAdService initialized with unit ID:', this.adUnitId);
-    this.initializeAd();
+    // Don't initialize immediately - wait for adManager to be ready
   }
 
   static getInstance(): InterstitialAdService {
@@ -47,8 +33,26 @@ class InterstitialAdService {
     return InterstitialAdService.instance;
   }
 
-  private initializeAd(): void {
+  async initialize(): Promise<void> {
+    const { TestIds } = await import('react-native-google-mobile-ads');
+
+    // Use test IDs in development, real IDs in production
+    this.adUnitId = ENV_CONFIG.isDevelopment
+      ? TestIds.INTERSTITIAL
+      : Platform.select({
+          ios: ENV_CONFIG.ADMOB_INTERSTITIAL_AD_UNIT_IOS,
+          android: ENV_CONFIG.ADMOB_INTERSTITIAL_AD_UNIT_ANDROID,
+          default: TestIds.INTERSTITIAL,
+        }) || TestIds.INTERSTITIAL;
+
+    console.log('InterstitialAdService initialized with unit ID:', this.adUnitId);
+    await this.initializeAd();
+  }
+
+  private async initializeAd(): Promise<void> {
     try {
+      const { InterstitialAd, AdEventType } = await import('react-native-google-mobile-ads');
+
       this.interstitial = InterstitialAd.createForAdRequest(this.adUnitId, {
         requestNonPersonalizedAdsOnly: false,
       });

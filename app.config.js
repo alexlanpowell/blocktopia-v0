@@ -10,11 +10,11 @@ module.exports = {
     name: "Blocktopia",
     slug: "blocktopia",
     owner: "turntopia",
-    version: "1.0.20",
+    version: "1.0.21",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    newArchEnabled: true,
+    newArchEnabled: false,
     jsEngine: "hermes",
     splash: {
       image: "./assets/splash-icon.png",
@@ -25,6 +25,7 @@ module.exports = {
       supportsTablet: false,
       bundleIdentifier: "com.blocktopia.app",
       infoPlist: {
+        GADApplicationIdentifier: "ca-app-pub-3088920444099039~9002215056", // Re-enabled with lazy loading fix
         // GADApplicationIdentifier: "ca-app-pub-3088920444099039~9002215056", // DISABLED to isolate crash
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription: "We need access to your photo library to upload your profile avatar.",
@@ -74,10 +75,10 @@ module.exports = {
       // These are read from process.env during build (EAS injects them)
       SUPABASE_URL: process.env.SUPABASE_URL || '',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
-      // REVENUECAT_API_KEY_IOS: process.env.REVENUECAT_API_KEY_IOS || '',
-      // REVENUECAT_API_KEY_ANDROID: process.env.REVENUECAT_API_KEY_ANDROID || '',
-      REVENUECAT_API_KEY_IOS: '',
-      REVENUECAT_API_KEY_ANDROID: '',
+      REVENUECAT_API_KEY_IOS: process.env.REVENUECAT_API_KEY_IOS || '',
+      REVENUECAT_API_KEY_ANDROID: process.env.REVENUECAT_API_KEY_ANDROID || '',
+      // REVENUECAT_API_KEY_IOS: '',
+      // REVENUECAT_API_KEY_ANDROID: '',
       ADMOB_APP_ID_IOS: process.env.ADMOB_APP_ID_IOS || '',
       ADMOB_APP_ID_ANDROID: process.env.ADMOB_APP_ID_ANDROID || '',
       ADMOB_REWARDED_AD_UNIT_IOS: process.env.ADMOB_REWARDED_AD_UNIT_IOS || '',

@@ -321,9 +321,9 @@ export default function IndexScreen() {
       {/* Shop Modal - Lazy loaded to prevent RevenueCat crash */}
       {ShopComponent && (
         <ShopComponent
-          visible={showShop}
-          onClose={() => setShowShop(false)}
-        />
+        visible={showShop}
+        onClose={() => setShowShop(false)}
+      />
       )}
 
       {/* Customization Modal */}

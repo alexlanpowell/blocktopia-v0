@@ -4,9 +4,6 @@
  * Supports multiple ad placements: game screen and home screen
  */
 
-import {
-  TestIds,
-} from 'react-native-google-mobile-ads';
 import { Platform } from 'react-native';
 import { ENV_CONFIG } from '../backend/config';
 import { adManager } from './AdManager';
@@ -16,10 +13,23 @@ export type BannerLocation = 'game' | 'home';
 
 class BannerAdService {
   private static instance: BannerAdService | null = null;
-  private gameAdUnitId: string;
-  private homeAdUnitId: string;
+  private gameAdUnitId: string = ''; // Initialized async
+  private homeAdUnitId: string = ''; // Initialized async
 
   private constructor() {
+    // Wait for lazy initialization
+  }
+
+  static getInstance(): BannerAdService {
+    if (!BannerAdService.instance) {
+      BannerAdService.instance = new BannerAdService();
+    }
+    return BannerAdService.instance;
+  }
+
+  async initialize(): Promise<void> {
+    const { TestIds } = await import('react-native-google-mobile-ads');
+
     // Game banner ad unit (default/backward compatible)
     this.gameAdUnitId = ENV_CONFIG.isDevelopment
       ? TestIds.BANNER
