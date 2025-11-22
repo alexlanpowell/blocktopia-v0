@@ -109,8 +109,8 @@ export default function IndexScreen() {
     router.push('/game');
   };
 
-  // Complex secret sequence: hold logo (5s) → version → logo → version → subtitle → version → hold version (5s)
-  const SECRET_CODE = ['version', 'logo', 'version', 'subtitle', 'version'];
+  // Complex secret sequence: hold logo (5s) → version → logo → version → subtitle → hold version (5s)
+  const SECRET_CODE = ['version', 'logo', 'version', 'subtitle'];
 
   const handleLogoLongPress = () => {
     // First step: hold logo to enable the sequence
