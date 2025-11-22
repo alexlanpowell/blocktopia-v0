@@ -32,8 +32,8 @@ export default function IndexScreen() {
   const [showCustomization, setShowCustomization] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showWelcomeToast, setShowWelcomeToast] = useState(false);
-  const [debugTapCount, setDebugTapCount] = useState(0);
   const [secretSequence, setSecretSequence] = useState<string[]>([]);
+  const [versionHoldComplete, setVersionHoldComplete] = useState(false);
   const [hasActiveGame, setHasActiveGame] = useState(false);
   const [isCheckingGame, setIsCheckingGame] = useState(true);
   const [ShopComponent, setShopComponent] = useState<any>(null);
@@ -109,20 +109,23 @@ export default function IndexScreen() {
     router.push('/game');
   };
 
-  // Secret code for production: version → settings → version → settings → version
-  const SECRET_CODE = ['version', 'settings', 'version', 'settings', 'version'];
+  // Complex secret sequence: version → logo → version → subtitle → version → hold version (5s) → hold logo (5s)
+  const SECRET_CODE = ['version', 'logo', 'version', 'subtitle', 'version'];
 
   const handleSecretTap = (location: string) => {
     setSecretSequence(prev => {
       const newSeq = [...prev, location].slice(-5); // Keep last 5 taps
       
-      // Check if sequence matches
+      if (__DEV__) {
+        console.log(`🔐 Secret sequence: [${newSeq.join(' → ')}]`);
+      }
+      
+      // Check if tap sequence matches (before holds)
       if (JSON.stringify(newSeq) === JSON.stringify(SECRET_CODE)) {
-        setShowAdmin(true);
         if (__DEV__) {
-          console.log('🔓 Admin dashboard unlocked via secret sequence');
+          console.log('✅ Tap sequence complete! Now hold version for 5 seconds...');
         }
-        return [];
+        return newSeq; // Keep sequence for hold validation
       }
       
       return newSeq;
@@ -130,32 +133,38 @@ export default function IndexScreen() {
   };
 
   const handleVersionTap = () => {
-    // In DEV mode, simple 5-tap works
-    if (__DEV__) {
-      setDebugTapCount(c => {
-        const newCount = c + 1;
-        if (newCount >= 5) {
-          console.log('🔓 Admin dashboard unlocked (DEV mode)');
-          setShowAdmin(true);
-          return 0;
-        }
-        console.log(`🔧 Debug tap ${newCount}/5`);
-        return newCount;
-      });
-      return;
-    }
-    
-    // In production/TestFlight, use secret sequence
     handleSecretTap('version');
   };
 
-  const handleSettingsTap = () => {
-    // Only track for secret sequence in production
-    if (!__DEV__) {
-      handleSecretTap('settings');
+  const handleVersionLongPress = () => {
+    // Check if tap sequence was completed
+    if (JSON.stringify(secretSequence) === JSON.stringify(SECRET_CODE)) {
+      if (__DEV__) {
+        console.log('✅ Version hold complete! Now hold Blocktopia logo for 5 seconds...');
+      }
+      setVersionHoldComplete(true);
     }
-    // Still navigate to settings
-    router.push('/settings');
+  };
+
+  const handleLogoTap = () => {
+    handleSecretTap('logo');
+  };
+
+  const handleLogoLongPress = () => {
+    // Check if both tap sequence AND version hold were completed
+    if (versionHoldComplete && JSON.stringify(secretSequence) === JSON.stringify(SECRET_CODE)) {
+      if (__DEV__) {
+        console.log('🔓 Admin dashboard unlocked! Full sequence completed.');
+      }
+      setShowAdmin(true);
+      // Reset state
+      setSecretSequence([]);
+      setVersionHoldComplete(false);
+    }
+  };
+
+  const handleSubtitleTap = () => {
+    handleSecretTap('subtitle');
   };
 
   return (
@@ -206,14 +215,26 @@ export default function IndexScreen() {
         </View>
 
         {/* Logo Image */}
-        <Image 
-          source={require('../assets/logo-full.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
-          accessibilityLabel="Blocktopia"
-          accessibilityRole="header"
-        />
-        <Text style={styles.subtitle}>Block Puzzle Game</Text>
+        <TouchableOpacity 
+          onPress={handleLogoTap}
+          onLongPress={handleLogoLongPress}
+          delayLongPress={5000}
+          activeOpacity={1}
+        >
+          <Image 
+            source={require('../assets/logo-full.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+            accessibilityLabel="Blocktopia"
+            accessibilityRole="header"
+          />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={handleSubtitleTap}
+          activeOpacity={1}
+        >
+          <Text style={styles.subtitle}>Block Puzzle Game</Text>
+        </TouchableOpacity>
 
         {/* Play/Continue Buttons */}
         {isCheckingGame ? (
@@ -315,7 +336,7 @@ export default function IndexScreen() {
         {/* Settings Button */}
         <TouchableOpacity
           style={styles.settingsButton}
-          onPress={handleSettingsTap}
+          onPress={() => router.push('/settings')}
           activeOpacity={0.7}
           accessibilityLabel="Open settings"
           accessibilityRole="button"
@@ -340,6 +361,8 @@ export default function IndexScreen() {
         {/* Version Info / Debug Trigger */}
         <TouchableOpacity 
           onPress={handleVersionTap}
+          onLongPress={handleVersionLongPress}
+          delayLongPress={5000}
           activeOpacity={1}
           style={{ padding: 20, marginTop: 20 }}
         >
