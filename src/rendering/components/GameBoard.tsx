@@ -41,6 +41,12 @@ export const GameBoard = memo(function GameBoard() {
         if (!isEmpty && cellValue !== null) {
           // Cell is filled - use gradient from theme
           gradientColors = COLORS.pieces[cellValue % COLORS.pieces.length];
+          
+          // DEFENSIVE CHECK: Ensure gradient colors are valid
+          if (!gradientColors || !gradientColors.start || !gradientColors.end) {
+            console.warn('[GameBoard] Invalid gradient colors for cellValue:', cellValue);
+            gradientColors = null; // Fall back to empty cell rendering
+          }
         }
 
         // Check if this cell should be highlighted (drag preview)
@@ -66,7 +72,14 @@ export const GameBoard = memo(function GameBoard() {
                 if (dragState.canPlace) {
                   // Use piece gradient with reduced opacity for preview
                   previewGradient = COLORS.pieces[dragState.draggedPiece.id % COLORS.pieces.length];
-                  cellOpacity = 0.7;
+                  
+                  // DEFENSIVE CHECK: Ensure gradient is valid
+                  if (!previewGradient || !previewGradient.start || !previewGradient.end) {
+                    console.warn('[GameBoard] Invalid preview gradient for piece:', dragState.draggedPiece.id);
+                    previewGradient = null; // Don't show preview if gradient is invalid
+                  } else {
+                    cellOpacity = 0.7;
+                  }
                 } else {
                   // Show red highlight for invalid placement
                   highlightColor = COLORS.accent.error;

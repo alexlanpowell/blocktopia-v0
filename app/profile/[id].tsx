@@ -16,7 +16,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getSupabase } from '../../src/services/backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../../src/services/backend/SupabaseClient';
 import { COLORS, SHADOWS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../src/utils/theme';
 
 interface ProfileData {
@@ -53,7 +53,7 @@ export default function ProfileViewScreen() {
       const supabase = getSupabase();
 
       // Load profile
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabaseManager
         .from('profiles')
         .select('*')
         .eq('id', id)

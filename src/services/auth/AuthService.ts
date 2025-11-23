@@ -5,7 +5,7 @@
 
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 import type { Session, User } from '@supabase/supabase-js';
 
 export interface AuthResult {
@@ -93,7 +93,7 @@ class AuthService {
 
       // Session doesn't exist or user ID doesn't match
       // Check if profile exists in database
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await supabaseManager
         .from('profiles')
         .select('id, username')
         .eq('id', userId)
@@ -260,7 +260,7 @@ class AuthService {
       }
 
       // Check if username is already taken
-      const { data: existingProfile, error: usernameCheckError } = await supabase
+      const { data: existingProfile, error: usernameCheckError } = await supabaseManager
         .from('profiles')
         .select('id')
         .eq('username', username)
@@ -391,7 +391,7 @@ class AuthService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseManager
         .from('profiles')
         .update({
           ...updates,
@@ -449,7 +449,7 @@ class AuthService {
         .getPublicUrl(fileName);
 
       // Update profile with new avatar URL
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseManager
         .from('profiles')
         .update({
           avatar_url: publicUrl,
@@ -484,7 +484,7 @@ class AuthService {
     const supabase = getSupabase();
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseManager
         .from('profiles')
         .select('id')
         .eq('id', userId)
@@ -583,7 +583,7 @@ class AuthService {
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await supabaseManager
             .from('profiles')
             .select('*')
             .eq('id', user.id)

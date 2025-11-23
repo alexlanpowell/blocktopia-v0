@@ -51,6 +51,12 @@ const SinglePiecePreview = memo(function SinglePiecePreview({ piece, index, canB
     // Get gradient colors for this piece
     const gradientColors = COLORS.pieces[piece.id % COLORS.pieces.length];
 
+    // DEFENSIVE CHECK: Ensure gradient colors exist
+    if (!gradientColors || !gradientColors.start || !gradientColors.end) {
+      console.error('[PiecePreview] Invalid gradient colors for piece:', piece.id);
+      return cells; // Return empty array to prevent invisible pieces
+    }
+
     // Calculate opacity: dim if can't be placed, very dim if being dragged
     const opacity = isBeingDragged ? 0.2 : (canBePlaced ? 1 : 0.4);
 
@@ -96,10 +102,26 @@ export const PiecePreview = memo(function PiecePreview() {
   const canPieceBePlaced = useGameStore(state => state.canPieceBePlaced);
   const dragState = useDragState();
 
+  // DEFENSIVE CHECK: Don't render if pieces aren't initialized yet
+  if (!currentPieces || currentPieces.length === 0) {
+    console.warn('[PiecePreview] No pieces available yet, skipping render');
+    return (
+      <BlurView intensity={20} tint="dark" style={styles.container}>
+        <View style={styles.innerContainer} />
+      </BlurView>
+    );
+  }
+
   return (
     <BlurView intensity={20} tint="dark" style={styles.container}>
       <View style={styles.innerContainer}>
         {currentPieces.map((piece, index) => {
+          // Skip rendering if piece is invalid
+          if (!piece || !piece.structure || piece.structure.length === 0) {
+            console.warn('[PiecePreview] Skipping invalid piece at index:', index);
+            return <View key={`piece-preview-empty-${index}`} style={styles.pieceContainer} />;
+          }
+
           const canPlace = canPieceBePlaced(index);
           const isBeingDragged = dragState.isDragging && dragState.draggedPieceIndex === index;
           return (

@@ -51,6 +51,12 @@ export const DragPreview = memo(function DragPreview() {
     // Get gradient colors for this piece
     const gradientColors = COLORS.pieces[piece.id % COLORS.pieces.length];
 
+    // DEFENSIVE CHECK: Ensure gradient colors are valid
+    if (!gradientColors || !gradientColors.start || !gradientColors.end) {
+      console.error('[DragPreview] Invalid gradient colors for piece:', piece.id);
+      return null; // Don't render preview if gradient is invalid
+    }
+
     // Determine colors based on placement validity
     // Green glow when piece can be placed (snapped), dim when invalid
     const canPlaceColors = dragState.canPlace

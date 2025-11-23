@@ -6,6 +6,7 @@
 import { createClient, SupabaseClient, Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ENV_CONFIG } from './config';
+import { networkMonitor } from '../../utils/NetworkMonitor';
 
 // Storage adapter for Supabase using AsyncStorage
 // Note: We use AsyncStorage for Phase 1. MMKV can be added in Phase 2 for better performance
@@ -40,6 +41,9 @@ class SupabaseManager {
   private static instance: SupabaseManager;
   private client: SupabaseClient | null = null;
   private initialized: boolean = false;
+  private cachedSession: Session | null = null;
+  private sessionCacheTime: number = 0;
+  private readonly SESSION_CACHE_DURATION = 5000; // 5 seconds
 
   private constructor() {}
 
@@ -145,9 +149,16 @@ class SupabaseManager {
   }
 
   /**
-   * Get current session
+   * Get current session (with caching for performance)
    */
   async getSession(): Promise<Session | null> {
+    // Return cached session if still valid
+    const now = Date.now();
+    if (this.cachedSession && (now - this.sessionCacheTime) < this.SESSION_CACHE_DURATION) {
+      return this.cachedSession;
+    }
+
+    // Fetch fresh session
     const client = this.getClient();
     const { data, error } = await client.auth.getSession();
     
@@ -155,6 +166,10 @@ class SupabaseManager {
       console.error('Error getting session:', error);
       return null;
     }
+    
+    // Cache the session
+    this.cachedSession = data.session;
+    this.sessionCacheTime = now;
     
     return data.session;
   }
@@ -172,6 +187,128 @@ class SupabaseManager {
     }
     
     return data.user;
+  }
+
+  /**
+   * Create a monitored query builder that tracks all operations
+   * Usage: supabaseManager.from('table_name').select()...
+   */
+  from(table: string) {
+    const client = this.getClient();
+    const builder = client.from(table);
+
+    // Wrap the builder methods to track network calls
+    return this.wrapQueryBuilder(builder, table);
+  }
+
+  /**
+   * Wrap a query builder to track network calls
+   */
+  private wrapQueryBuilder(builder: any, table: string) {
+    // Store original methods
+    const originalSelect = builder.select.bind(builder);
+    const originalInsert = builder.insert.bind(builder);
+    const originalUpdate = builder.update.bind(builder);
+    const originalDelete = builder.delete.bind(builder);
+
+    // Helper to wrap then()
+    const wrapPromise = (query: any, method: 'select' | 'insert' | 'update' | 'delete') => {
+      const originalThen = query.then.bind(query);
+      const startTime = Date.now();
+
+      query.then = function (onFulfilled?: any, onRejected?: any) {
+        return originalThen(
+          (result: any) => {
+            const duration = Date.now() - startTime;
+            networkMonitor.trackCall(
+              method,
+              table,
+              duration,
+              !result.error,
+              result.error?.message,
+              {
+                count: Array.isArray(result.data) ? result.data.length : result.data ? 1 : 0,
+              }
+            );
+            return onFulfilled ? onFulfilled(result) : result;
+          },
+          (error: any) => {
+            const duration = Date.now() - startTime;
+            networkMonitor.trackCall(
+              method,
+              table,
+              duration,
+              false,
+              error?.message || 'Unknown error'
+            );
+            return onRejected ? onRejected(error) : Promise.reject(error);
+          }
+        );
+      };
+      return query;
+    };
+
+    // Wrap select
+    builder.select = function (...args: any[]) {
+      const query = originalSelect(...args);
+      return wrapPromise(query, 'select');
+    };
+
+    // Wrap insert
+    builder.insert = function (...args: any[]) {
+      const query = originalInsert(...args);
+      return wrapPromise(query, 'insert');
+    };
+
+    // Wrap update
+    builder.update = function (...args: any[]) {
+      const query = originalUpdate(...args);
+      return wrapPromise(query, 'update');
+    };
+
+    // Wrap delete
+    builder.delete = function (...args: any[]) {
+      const query = originalDelete(...args);
+      return wrapPromise(query, 'delete');
+    };
+
+    return builder;
+  }
+
+  /**
+   * Track auth operations
+   */
+  async trackAuthOperation<T>(
+    operation: string,
+    promise: Promise<T>
+  ): Promise<T> {
+    const startTime = Date.now();
+    try {
+      const result = await promise;
+      const duration = Date.now() - startTime;
+      
+      networkMonitor.trackCall(
+        'auth',
+        operation,
+        duration,
+        true,
+        undefined,
+        { operation }
+      );
+      
+      return result;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      networkMonitor.trackCall(
+        'auth',
+        operation,
+        duration,
+        false,
+        error?.message || 'Unknown error',
+        { operation }
+      );
+      throw error;
+    }
   }
 }
 

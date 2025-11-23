@@ -5,7 +5,7 @@
  */
 
 import { MMKV } from 'react-native-mmkv';
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 import { useMonetizationStore } from '../../store/monetizationStore';
 
 export interface AudioSettings {
@@ -265,8 +265,16 @@ class AudioSettingsStorage {
       const userId = store.user.userId;
       if (!userId) return;
 
+      // Check if Supabase is initialized before trying to use it
+      if (!supabaseManager.isInitialized()) {
+        if (__DEV__) {
+          console.warn('[AudioSettingsStorage] Supabase not initialized, skipping load');
+        }
+        return;
+      }
+
       const supabase = getSupabase();
-      const { data, error } = await supabase
+      const { data, error } = await supabaseManager
         .from('user_settings')
         .select('music_volume, sfx_volume, music_enabled, sfx_enabled')
         .eq('user_id', userId)
@@ -325,6 +333,14 @@ class AudioSettingsStorage {
       const userId = store.user.userId;
       if (!userId) return;
 
+      // Check if Supabase is initialized before trying to use it
+      if (!supabaseManager.isInitialized()) {
+        if (__DEV__) {
+          console.warn('[AudioSettingsStorage] Supabase not initialized, skipping sync');
+        }
+        return;
+      }
+
       const settings = this.getSettings();
       const supabase = getSupabase();
 
@@ -355,6 +371,17 @@ class AudioSettingsStorage {
    */
   async resetToDefaults(): Promise<void> {
     await this.saveSettings(DEFAULT_SETTINGS);
+  }
+
+  /**
+   * Cleanup - Clear pending timers
+   * Called during app unmount/reload
+   */
+  cleanup(): void {
+    if (this.syncDebounceTimer) {
+      clearTimeout(this.syncDebounceTimer);
+      this.syncDebounceTimer = null;
+    }
   }
 }
 

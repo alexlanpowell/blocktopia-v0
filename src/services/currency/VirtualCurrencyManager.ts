@@ -3,7 +3,7 @@
  * Handles adding, spending, and syncing gems with backend
  */
 
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 import { useMonetizationStore } from '../../store/monetizationStore';
 import { analyticsService } from '../analytics/AnalyticsService';
 
@@ -75,7 +75,7 @@ class VirtualCurrencyManager {
       const supabase = getSupabase();
       
       // Update user profile
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseManager
         .from('profiles')
         .update({
           gems: newBalance,
@@ -157,7 +157,7 @@ class VirtualCurrencyManager {
       // Sync to backend
       const supabase = getSupabase();
       
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseManager
         .from('profiles')
         .update({
           gems: newBalance,
@@ -220,7 +220,7 @@ class VirtualCurrencyManager {
       // Sync to backend
       const supabase = getSupabase();
       
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseManager
         .from('profiles')
         .update({
           gems: amount,
@@ -268,7 +268,7 @@ class VirtualCurrencyManager {
     try {
       const supabase = getSupabase();
 
-      await supabase.from('transactions').insert({
+      await supabaseManager.from('transactions').insert({
         user_id: userId,
         transaction_type: amount > 0 ? 'gems_earned' : 'gems_spent',
         gems_change: amount,
@@ -294,7 +294,7 @@ class VirtualCurrencyManager {
 
       const supabase = getSupabase();
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseManager
         .from('transactions')
         .select('*')
         .eq('user_id', userId)
@@ -323,7 +323,7 @@ class VirtualCurrencyManager {
 
       const supabase = getSupabase();
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseManager
         .from('transactions')
         .select('gems_change')
         .eq('user_id', userId)

@@ -3,7 +3,7 @@
  * Manages dynamic app configuration and feature flags
  */
 
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY_CONFIG = '@remote_config_cache';
@@ -82,7 +82,7 @@ class RemoteConfigService {
       const supabase = getSupabase();
       
       // Fetch Config
-      const { data: configData, error: configError } = await supabase
+      const { data: configData, error: configError } = await supabaseManager
         .from('remote_config')
         .select('key, value');
 

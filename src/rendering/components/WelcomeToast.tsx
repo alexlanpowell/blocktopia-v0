@@ -30,8 +30,11 @@ export function WelcomeToast({
 }: WelcomeToastProps) {
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     if (visible) {
       // Slide in animation
       Animated.parallel([
@@ -50,16 +53,28 @@ export function WelcomeToast({
 
       // Auto-dismiss after duration
       const timer = setTimeout(() => {
-        dismissToast();
+        if (isMountedRef.current) {
+          dismissToast();
+        }
       }, autoHideDuration);
 
-      return () => clearTimeout(timer);
+      return () => {
+        isMountedRef.current = false;
+        clearTimeout(timer);
+        // Stop animations on unmount
+        slideAnim.stopAnimation();
+        opacityAnim.stopAnimation();
+      };
     } else {
-      dismissToast();
+      if (isMountedRef.current) {
+        dismissToast();
+      }
     }
   }, [visible]);
 
   const dismissToast = () => {
+    if (!isMountedRef.current) return;
+    
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: -100,
@@ -71,8 +86,10 @@ export function WelcomeToast({
         duration: 250,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      onDismiss();
+    ]).start((result) => {
+      if (result.finished && isMountedRef.current) {
+        onDismiss();
+      }
     });
   };
 

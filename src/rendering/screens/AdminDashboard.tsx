@@ -1,186 +1,169 @@
 /**
- * Admin Dashboard - Phase 9
- * Internal tool for monitoring, config management, and debugging
+ * Admin Dashboard - Production-Grade Debugging & Testing Tool
+ * Comprehensive admin panel with 5 major tabs: Overview, Game, User, System, Logs
  */
 
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Switch,
-  TextInput,
-  Modal,
   Platform,
+  SafeAreaView,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { Modal } from 'react-native';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../utils/theme';
-import { remoteConfig } from '../../services/config/RemoteConfigService';
-import { errorTracker } from '../../utils/ErrorTracker';
-import { performanceMonitor } from '../../utils/PerformanceMonitor';
-import { enhancedAnalytics } from '../../services/analytics/EnhancedAnalyticsService';
-import { useMonetizationStore } from '../../store/monetizationStore';
+import { OverviewTab } from './admin/OverviewTab';
+import { GameTab } from './admin/GameTab';
+import { UserTab } from './admin/UserTab';
+import { SystemTab } from './admin/SystemTab';
+import { LogsTab } from './admin/LogsTab';
 
 interface AdminDashboardProps {
   visible: boolean;
   onClose: () => void;
 }
 
-export function AdminDashboard({ visible, onClose }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'config' | 'errors' | 'perf' | 'analytics'>('config');
-  const [configKeys, setConfigKeys] = useState<string[]>([]);
-  const [errorLogs, setErrorLogs] = useState<any[]>([]);
-  const [perfSummary, setPerfSummary] = useState<string>('');
-  
-  // Local state for refreshing UI
-  const [, setTick] = useState(0);
-  const forceUpdate = () => setTick(t => t + 1);
+type TabType = 'overview' | 'game' | 'user' | 'system' | 'logs';
 
-  useEffect(() => {
-    if (visible) {
-      refreshData();
-    }
-  }, [visible, activeTab]);
+// Error Boundary to catch any crashes in Admin Dashboard
+class AdminErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
 
-  const refreshData = async () => {
-    // Refresh config
-    await remoteConfig.fetchConfig(); // Pull latest
-    // In a real app we'd inspect the internal map, but for now we'll just mock some known keys
-    // or expose a method to get all keys. 
-    // Since `config` is private in RemoteConfigService, we'd ideally add a getter.
-    // For this demo, we'll just check the default keys we know exist.
-    setConfigKeys([
-      'ad_interstitial_frequency',
-      'daily_reward_gems',
-      'welcome_bonus_gems',
-      'enable_ads', 
-      'enable_new_shop_ui'
-    ]);
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
 
-    // Refresh errors
-    setErrorLogs(errorTracker.getErrorHistory());
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('Admin Dashboard Error:', error, errorInfo);
+  }
 
-    // Refresh perf
-    setPerfSummary(performanceMonitor.getSummary());
-  };
-
-  const renderConfigTab = () => (
-    <ScrollView style={styles.contentScroll}>
-      <Text style={styles.sectionTitle}>Remote Config & Flags</Text>
-      {configKeys.map(key => {
-        const val = remoteConfig.getValue(key);
-        const isFlag = key.startsWith('enable_');
-        
-        return (
-          <View key={key} style={styles.configRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.configKey}>{key}</Text>
-              <Text style={styles.configValue}>{JSON.stringify(val)}</Text>
-            </View>
-            {isFlag && (
-              <Switch
-                value={Boolean(val)}
-                onValueChange={() => {
-                  // In a real admin dash, this would update the backend via API
-                  alert('Editing config is read-only in this client view. Update via Supabase dashboard.');
-                }}
-              />
-            )}
-          </View>
-        );
-      })}
-      <TouchableOpacity style={styles.actionButton} onPress={refreshData}>
-        <Text style={styles.actionButtonText}>Refresh Config</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
-
-  const renderErrorsTab = () => (
-    <ScrollView style={styles.contentScroll}>
-      <Text style={styles.sectionTitle}>Error Logs ({errorLogs.length})</Text>
-      {errorLogs.map((log, i) => (
-        <View key={i} style={styles.logRow}>
-          <View style={styles.logHeader}>
-            <Text style={[styles.severityBadge, { 
-              color: log.severity === 'critical' ? COLORS.accent.error : COLORS.accent.warning 
-            }]}>{log.severity.toUpperCase()}</Text>
-            <Text style={styles.timestamp}>{new Date(log.timestamp).toLocaleTimeString()}</Text>
-          </View>
-          <Text style={styles.logContext}>{log.context}</Text>
-          <Text style={styles.logMessage}>{log.error.message}</Text>
-        </View>
-      ))}
-      <TouchableOpacity 
-        style={[styles.actionButton, { backgroundColor: COLORS.accent.error }]} 
-        onPress={() => {
-          errorTracker.clearHistory();
-          refreshData();
-        }}
-      >
-        <Text style={styles.actionButtonText}>Clear Logs</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
-
-  const renderPerfTab = () => (
-    <ScrollView style={styles.contentScroll}>
-      <Text style={styles.sectionTitle}>Performance Metrics</Text>
-      <Text style={styles.monospaceText}>{perfSummary}</Text>
-      <TouchableOpacity style={styles.actionButton} onPress={refreshData}>
-        <Text style={styles.actionButtonText}>Refresh Metrics</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
-
-  const renderAnalyticsTab = () => (
-    <ScrollView style={styles.contentScroll}>
-      <Text style={styles.sectionTitle}>Analytics Session</Text>
-      <View style={styles.statCard}>
-        <Text style={styles.statLabel}>User Segment</Text>
-        <Text style={styles.statValue}>{enhancedAnalytics.getUserSegment()}</Text>
-      </View>
-      {/* Add more analytics debug info here */}
-    </ScrollView>
-  );
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>🔧 Admin Dashboard</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>Done</Text>
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: COLORS.background.dark1 }}>
+          <Text style={{ color: 'red', fontSize: 18, marginBottom: 10 }}>
+            Dashboard Error
+          </Text>
+          <Text style={{ color: 'white', textAlign: 'center' }}>
+            {this.state.error?.message || 'Unknown error'}
+          </Text>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, error: null })}
+            style={{ marginTop: 20, padding: 10, backgroundColor: '#007AFF', borderRadius: 5 }}
+          >
+            <Text style={{ color: 'white' }}>Try Again</Text>
           </TouchableOpacity>
         </View>
+      );
+    }
 
-        <View style={styles.tabs}>
-          {['config', 'errors', 'perf', 'analytics'].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
-              onPress={() => setActiveTab(tab as any)}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                {tab.toUpperCase()}
-              </Text>
+    return this.props.children;
+  }
+}
+
+export function AdminDashboard({ visible, onClose }: AdminDashboardProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [, setTick] = useState(0);
+
+  // Auto-refresh Overview tab every 2 seconds when visible
+  useEffect(() => {
+    if (!visible || activeTab !== 'overview') return;
+
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [visible, activeTab]);
+
+  const handleRefresh = () => {
+    setTick(t => t + 1);
+  };
+
+  const tabs: Array<{ id: TabType; label: string; icon: string }> = [
+    { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'game', label: 'Game', icon: '🎮' },
+    { id: 'user', label: 'User', icon: '👤' },
+    { id: 'system', label: 'System', icon: '⚙️' },
+    { id: 'logs', label: 'Logs', icon: '📋' },
+  ];
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <OverviewTab onRefresh={handleRefresh} />;
+      case 'game':
+        return <GameTab />;
+      case 'user':
+        return <UserTab />;
+      case 'system':
+        return <SystemTab />;
+      case 'logs':
+        return <LogsTab />;
+      default:
+        return <OverviewTab onRefresh={handleRefresh} />;
+    }
+  };
+
+  return (
+    <Modal 
+      visible={visible} 
+      animationType="slide" 
+      presentationStyle="fullScreen"
+      statusBarTranslucent={false}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>🔧 Admin Dashboard</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>Done</Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
 
-        <View style={styles.content}>
-          {activeTab === 'config' && renderConfigTab()}
-          {activeTab === 'errors' && renderErrorsTab()}
-          {activeTab === 'perf' && renderPerfTab()}
-          {activeTab === 'analytics' && renderAnalyticsTab()}
+          {/* Tab Bar */}
+          <View style={styles.tabs}>
+            {tabs.map((tab) => (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.tab, activeTab === tab.id && styles.activeTab]}
+                onPress={() => setActiveTab(tab.id)}
+              >
+                <Text style={styles.tabIcon}>{tab.icon}</Text>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab.id && styles.activeTabText,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Tab Content */}
+          <View style={styles.content}>{renderTabContent()}</View>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background.dark1,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background.dark1,
@@ -190,7 +173,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SPACING.lg,
-    paddingTop: Platform.OS === 'ios' ? 20 : SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.ui.cardBorder,
     backgroundColor: COLORS.ui.cardBackground,
@@ -205,24 +187,31 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: COLORS.primary.cyan,
     fontWeight: 'bold',
+    fontSize: 16,
   },
   tabs: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.ui.cardBorder,
+    backgroundColor: COLORS.ui.cardBackground,
   },
   tab: {
     flex: 1,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: COLORS.primary.cyan,
   },
+  tabIcon: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
   tabText: {
     color: COLORS.ui.textSecondary,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
   },
   activeTabText: {
@@ -231,92 +220,4 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  contentScroll: {
-    padding: SPACING.md,
-  },
-  sectionTitle: {
-    ...TYPOGRAPHY.h4,
-    color: COLORS.ui.text,
-    marginBottom: SPACING.md,
-  },
-  configRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    backgroundColor: COLORS.ui.cardBackground,
-    marginBottom: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  configKey: {
-    color: COLORS.ui.textSecondary,
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  configValue: {
-    color: COLORS.primary.gold,
-    fontWeight: 'bold',
-  },
-  logRow: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.ui.cardBackground,
-    marginBottom: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.accent.warning,
-  },
-  logHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.xs,
-  },
-  severityBadge: {
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  timestamp: {
-    color: COLORS.ui.textSecondary,
-    fontSize: 12,
-  },
-  logContext: {
-    color: COLORS.ui.text,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  logMessage: {
-    color: COLORS.ui.textSecondary,
-  },
-  monospaceText: {
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    color: COLORS.ui.text,
-    fontSize: 12,
-  },
-  actionButton: {
-    backgroundColor: COLORS.primary.cyan,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-    marginVertical: SPACING.lg,
-  },
-  actionButtonText: {
-    color: COLORS.ui.text,
-    fontWeight: 'bold',
-  },
-  statCard: {
-    backgroundColor: COLORS.ui.cardBackground,
-    padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  statLabel: {
-    color: COLORS.ui.textSecondary,
-    fontSize: 14,
-    marginBottom: SPACING.xs,
-  },
-  statValue: {
-    color: COLORS.primary.gold,
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
 });
-

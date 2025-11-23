@@ -3,7 +3,7 @@
  * Local-first strategy: MMKV for fast saves, Supabase for backup
  */
 
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 import { MMKV } from 'react-native-mmkv';
 import { GameState } from '../../game/core/GameState';
 import { BoardGrid, Piece } from '../../utils/types';
@@ -189,7 +189,7 @@ export class GamePersistenceService {
       await supabase.rpc('deactivate_other_sessions', { p_user_id: userId });
 
       // Check for existing active session to avoid ON CONFLICT issues with partial indexes
-      const { data: existingSession } = await supabase
+      const { data: existingSession } = await supabaseManager
         .from('game_sessions')
         .select('id')
         .eq('user_id', userId)

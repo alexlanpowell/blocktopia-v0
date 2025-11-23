@@ -25,81 +25,107 @@ export function AudioControls() {
   const [sfxVolume, setSfxVolume] = useState(0.8);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
+  const isMountedRef = React.useRef(true);
 
   // Load settings on mount
   useEffect(() => {
+    isMountedRef.current = true;
     const settings = audioSettingsStorage.getSettings();
     setMusicVolume(settings.musicVolume);
     setSfxVolume(settings.sfxVolume);
     setMusicEnabled(settings.musicEnabled);
     setSfxEnabled(settings.sfxEnabled);
+    
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // Music toggle handler
   const handleMusicToggle = useCallback(async () => {
+    if (!isMountedRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Play sound (dynamic import)
     import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
-      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+      if (isMountedRef.current) {
+        AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+      }
     }).catch(() => {});
     
     const newValue = !musicEnabled;
+    if (!isMountedRef.current) return;
     setMusicEnabled(newValue);
     await audioSettingsStorage.setMusicEnabled(newValue);
   }, [musicEnabled]);
 
   // SFX toggle handler
   const handleSfxToggle = useCallback(async () => {
+    if (!isMountedRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Play sound before disabling (if currently enabled) (dynamic import)
     if (sfxEnabled) {
       import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
-        AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+        if (isMountedRef.current) {
+          AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP);
+        }
       }).catch(() => {});
     }
     
     const newValue = !sfxEnabled;
+    if (!isMountedRef.current) return;
     setSfxEnabled(newValue);
     await audioSettingsStorage.setSfxEnabled(newValue);
   }, [sfxEnabled]);
 
   // Music volume handler - VISUAL FEEDBACK ONLY (while dragging)
   const handleMusicVolumeChange = useCallback((value: number) => {
+    if (!isMountedRef.current) return;
     setMusicVolume(value);
     // Just update AudioManager volume in real-time for immediate feedback (dynamic import)
     import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
-      AudioManager.setMusicVolume(value);
+      if (isMountedRef.current) {
+        AudioManager.setMusicVolume(value);
+      }
     }).catch(() => {});
   }, []);
 
   // Music volume complete - SAVE & LOG (when released)
   const handleMusicVolumeComplete = useCallback(async (value: number) => {
+    if (!isMountedRef.current) return;
     // Save to storage (triggers analytics)
     await audioSettingsStorage.setMusicVolume(value);
     // Play test sound (dynamic import)
     if (sfxEnabled) {
       import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
-        AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+        if (isMountedRef.current) {
+          AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+        }
       }).catch(() => {});
     }
   }, [sfxEnabled]);
 
   // SFX volume handler - VISUAL FEEDBACK ONLY (while dragging)
   const handleSfxVolumeChange = useCallback((value: number) => {
+    if (!isMountedRef.current) return;
     setSfxVolume(value);
     // Just update AudioManager volume in real-time for immediate feedback (dynamic import)
     import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
-      AudioManager.setSfxVolume(value);
+      if (isMountedRef.current) {
+        AudioManager.setSfxVolume(value);
+      }
     }).catch(() => {});
   }, []);
 
   // SFX volume complete - SAVE & LOG (when released)
   const handleSfxVolumeComplete = useCallback(async (value: number) => {
+    if (!isMountedRef.current) return;
     // Save to storage (triggers analytics)
     await audioSettingsStorage.setSfxVolume(value);
     // Play test sound (dynamic import)
     import('../../services/audio/AudioManager').then(({ default: AudioManager }) => {
-      AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+      if (isMountedRef.current) {
+        AudioManager.playSoundEffect(SoundEffect.BUTTON_TAP, 0.5);
+      }
     }).catch(() => {});
   }, []);
 

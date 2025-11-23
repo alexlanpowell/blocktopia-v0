@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { getSupabase } from '../services/backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../services/backend/SupabaseClient';
 import { authService, type UserProfile } from '../services/auth/AuthService';
 import { optimizationService } from '../services/optimization/OptimizationService';
 
@@ -397,7 +397,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
         const supabase = getSupabase();
 
         // Sync gems
-        await supabase
+        await supabaseManager
           .from('profiles')
           .update({
             gems: get().gems,
@@ -417,7 +417,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
           })
         );
 
-        await supabase
+        await supabaseManager
           .from('power_ups_inventory')
           .upsert(powerUpUpdates);
 
@@ -426,7 +426,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
         const { audioSettingsStorage } = await import('../services/audio/AudioSettingsStorage');
         const audioSettings = audioSettingsStorage.getSettings();
 
-        await supabase
+        await supabaseManager
           .from('user_settings')
           .update({
             active_block_skin: get().activeCosmetics[CosmeticType.BLOCK_SKIN],
@@ -462,7 +462,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
         get().setUser(profile);
 
         // Load power-ups
-        const { data: powerUps } = await supabase
+        const { data: powerUps } = await supabaseManager
           .from('power_ups_inventory')
           .select('*')
           .eq('user_id', profile.id);
@@ -474,7 +474,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
         }
 
         // Load cosmetics
-        const { data: cosmetics } = await supabase
+        const { data: cosmetics } = await supabaseManager
           .from('cosmetics_owned')
           .select('cosmetic_id')
           .eq('user_id', profile.id);
@@ -486,7 +486,7 @@ export const useMonetizationStore = create<MonetizationStore>()(
         }
 
         // Load settings
-        const { data: settings } = await supabase
+        const { data: settings } = await supabaseManager
           .from('user_settings')
           .select('*')
           .eq('user_id', profile.id)

@@ -3,7 +3,7 @@
  * Centralized event tracking for monetization and user behavior
  */
 
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 import { useMonetizationStore } from '../../store/monetizationStore';
 
 export interface AnalyticsEvent {
@@ -58,7 +58,7 @@ class AnalyticsService {
       // Log to Supabase for custom queries
       if (userId) {
         const supabase = getSupabase();
-        await supabase.from('analytics_events').insert({
+        await supabaseManager.from('analytics_events').insert({
           event_name: eventName,
           event_params: params || {},
           user_id: userId,

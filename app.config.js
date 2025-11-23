@@ -10,7 +10,8 @@ module.exports = {
     name: "Blocktopia",
     slug: "blocktopia",
     owner: "turntopia",
-    version: "1.0.29",
+    scheme: "blocktopia",
+    version: "1.0.30",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -75,6 +76,9 @@ module.exports = {
       // These are read from process.env during build (EAS injects them)
       SUPABASE_URL: process.env.SUPABASE_URL || '',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
+      // Unmap's Supabase (Turntopia Identity Hub)
+      UNMAP_SUPABASE_URL: process.env.UNMAP_SUPABASE_URL || 'https://siuprynidlbcexhtexdw.supabase.co',
+      UNMAP_SUPABASE_ANON_KEY: process.env.UNMAP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpdXByeW5pZGxiY2V4aHRleGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NTU2MjAsImV4cCI6MjA3OTAzMTYyMH0.4KsJeRaRcoZZ_dLH7iL4RNmPCJau66ZjmqFw7AGYw6I',
       // REVENUECAT_API_KEY_IOS: process.env.REVENUECAT_API_KEY_IOS || '',
       // REVENUECAT_API_KEY_ANDROID: process.env.REVENUECAT_API_KEY_ANDROID || '',
       // REVENUECAT_API_KEY_IOS: '',

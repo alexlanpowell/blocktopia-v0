@@ -7,7 +7,7 @@ import { useMonetizationStore, CosmeticType } from '../../store/monetizationStor
 import { virtualCurrencyManager, GemSpend } from '../currency/VirtualCurrencyManager';
 import { analyticsService } from '../analytics/AnalyticsService';
 import { getCosmeticById, type Cosmetic } from './CosmeticCatalog';
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 
 class CosmeticService {
   private static instance: CosmeticService | null = null;
@@ -207,7 +207,7 @@ class CosmeticService {
 
       const supabase = getSupabase();
 
-      await supabase
+      await supabaseManager
         .from('cosmetics_owned')
         .insert({
           user_id: userId,

@@ -42,6 +42,7 @@ class AudioManager {
   private isMusicEnabled: boolean = true;
   private isSfxEnabled: boolean = true;
   private currentTrack: MusicTrack = MusicTrack.NONE;
+  private lastPlayedTrack: MusicTrack = MusicTrack.NONE; // Track what was playing before disable
   private initialized: boolean = false;
   private isPaused: boolean = false;
 
@@ -63,11 +64,11 @@ class AudioManager {
     try {
       performanceMonitor.startMeasure('audio_initialization');
 
-      // Configure audio mode
+      // Configure audio mode - simple config that won't conflict with dev menu
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
+        staysActiveInBackground: true, // Keep audio session alive
+        shouldDuckAndroid: false, // Don't duck - prevents conflicts
       });
 
       // Preload sound effects
@@ -157,13 +158,20 @@ class AudioManager {
     }
 
     try {
+      // Stop the sound first if it's playing to avoid "seeking interrupted" errors
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded && status.isPlaying) {
+        await sound.stopAsync();
+      }
+      
       // Reset to start and set volume
       await sound.setPositionAsync(0);
       await sound.setVolumeAsync(this.sfxVolume * volumeMultiplier);
       await sound.playAsync();
     } catch (error) {
       // Silent fail - audio errors shouldn't break the game
-      if (__DEV__) {
+      // Don't log "seeking interrupted" errors as they're harmless
+      if (__DEV__ && error instanceof Error && !error.message.includes('seeking interrupted')) {
         console.error(`Failed to play sound effect ${effect}:`, error);
       }
     }
@@ -233,6 +241,7 @@ class AudioManager {
 
       this.currentMusic = sound;
       this.currentTrack = track;
+      this.lastPlayedTrack = track; // Remember what we're playing
       this.isPaused = false;
 
       await sound.playAsync();
@@ -348,9 +357,11 @@ class AudioManager {
 
     if (!enabled) {
       this.stopMusic();
-    } else if (this.currentTrack !== MusicTrack.NONE) {
-      // Resume current track if it was playing
-      this.playMusic(this.currentTrack);
+    } else {
+      // Resume the last played track (if any) when re-enabling music
+      if (this.lastPlayedTrack !== MusicTrack.NONE) {
+        this.playMusic(this.lastPlayedTrack);
+      }
     }
 
     // Analytics
@@ -436,6 +447,32 @@ class AudioManager {
     await Promise.all(unloadPromises);
     this.soundEffects.clear();
     this.initialized = false;
+  }
+
+  /**
+   * EMERGENCY STOP - Synchronous audio termination for app reload
+   * Sets volume to 0 and nullifies references immediately without waiting
+   * Used during unmount to prevent native crashes during dev menu reload
+   */
+  forceStopImmediate(): void {
+    try {
+      // Mute immediately (fire-and-forget, don't await)
+      if (this.currentMusic) {
+        this.currentMusic.setVolumeAsync(0).catch(() => {/* ignore */});
+        // Nullify immediately so no new operations can start
+        this.currentMusic = null;
+      }
+      
+      this.currentTrack = MusicTrack.NONE;
+      this.isPaused = false;
+      
+      // Mute all sound effects (fire-and-forget)
+      this.soundEffects.forEach(sound => {
+        sound.setVolumeAsync(0).catch(() => {/* ignore */});
+      });
+    } catch (error) {
+      // Completely silent - this is emergency cleanup
+    }
   }
 }
 

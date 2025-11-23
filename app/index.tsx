@@ -4,7 +4,7 @@
  * Integrated with authentication and monetization
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,12 +13,15 @@ import { COLORS, SHADOWS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../src/util
 import { useUser, useGems, useIsPremium, useMonetizationStore } from '../src/store/monetizationStore';
 import { useGameStore } from '../src/store/gameStore';
 import { GamePersistenceService } from '../src/services/game/GamePersistenceService';
-import { AuthModal } from '../src/rendering/components/AuthModal';
+
+// Lazy-load heavy components to improve initial load time
+const AuthModal = lazy(() => import('../src/rendering/components/AuthModal').then(m => ({ default: m.AuthModal })));
+const CustomizationScreen = lazy(() => import('../src/rendering/screens/CustomizationScreen').then(m => ({ default: m.CustomizationScreen })));
+const AdminDashboard = lazy(() => import('../src/rendering/screens/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const WelcomeToast = lazy(() => import('../src/rendering/components/WelcomeToast').then(m => ({ default: m.WelcomeToast })));
+const HomeBannerAd = lazy(() => import('../src/rendering/components/BannerAd').then(m => ({ default: m.HomeBannerAd })));
+const TurntopiaSignInModal = lazy(() => import('../src/rendering/components/TurntopiaSignInModal').then(m => ({ default: m.TurntopiaSignInModal })));
 // DON'T import Shop here - lazy load to prevent PurchaseManager -> RevenueCat eager import crash
-import { CustomizationScreen } from '../src/rendering/screens/CustomizationScreen';
-import { AdminDashboard } from '../src/rendering/screens/AdminDashboard';
-import { WelcomeToast } from '../src/rendering/components/WelcomeToast';
-import { HomeBannerAd } from '../src/rendering/components/BannerAd';
 
 export default function IndexScreen() {
   const insets = useSafeAreaInsets();
@@ -32,6 +35,7 @@ export default function IndexScreen() {
   const [showCustomization, setShowCustomization] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showWelcomeToast, setShowWelcomeToast] = useState(false);
+  const [showTurntopiaSignIn, setShowTurntopiaSignIn] = useState(false);
   const [secretSequence, setSecretSequence] = useState<string[]>([]);
   const [hasActiveGame, setHasActiveGame] = useState(false);
   const [isCheckingGame, setIsCheckingGame] = useState(true);
@@ -42,46 +46,78 @@ export default function IndexScreen() {
 
   // Check for active game on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const checkActiveGame = async () => {
+      if (!isMounted) return;
       setIsCheckingGame(true);
       try {
         const hasActive = await GamePersistenceService.hasActiveGame();
+        if (!isMounted) return;
         setHasActiveGame(hasActive);
       } catch (error) {
         if (__DEV__) {
           console.error('[IndexScreen] Error checking active game:', error);
         }
+        if (!isMounted) return;
         setHasActiveGame(false);
       } finally {
+        if (!isMounted) return;
         setIsCheckingGame(false);
       }
     };
     
     checkActiveGame();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Lazy load Shop component to prevent RevenueCat crash
   useEffect(() => {
+    let isMounted = true;
+    
     if (showShop && !ShopComponent) {
       import('../src/rendering/components/Shop').then(module => {
-        setShopComponent(() => module.Shop);
+        if (isMounted) {
+          setShopComponent(() => module.Shop);
+        }
       }).catch(error => {
-        if (__DEV__) {
+        if (__DEV__ && isMounted) {
           console.error('Failed to load Shop component:', error);
         }
       });
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [showShop, ShopComponent]);
 
   // Show welcome toast on first launch
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     if (firstLaunch && user.isAuthenticated && user.username) {
-      setShowWelcomeToast(true);
+      if (isMounted) {
+        setShowWelcomeToast(true);
+      }
       // Mark as no longer first launch after showing
-      setTimeout(() => {
-        setFirstLaunch(false);
+      timeoutId = setTimeout(() => {
+        if (isMounted) {
+          setFirstLaunch(false);
+        }
       }, 100);
     }
+    
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [firstLaunch, user.isAuthenticated, user.username]);
   
   const handleContinueGame = async () => {
@@ -113,7 +149,7 @@ export default function IndexScreen() {
 
   const handleSecretTap = (location: string) => {
     setSecretSequence(prev => {
-      const newSeq = [...prev, location].slice(-5); // Keep last 5 taps
+      const newSeq = [...prev, location].slice(-6); // Keep last 6 taps (matches SECRET_CODE length)
       
       if (__DEV__) {
         console.log(`🔐 Secret sequence: [${newSeq.join(' → ')}]`);
@@ -144,6 +180,18 @@ export default function IndexScreen() {
     handleSecretTap('subtitle');
   };
 
+  const handleTurntopiaSignInComplete = async (userId: string, tTokens: number) => {
+    if (__DEV__) {
+      console.log(`[IndexScreen] Turntopia account linked! User: ${userId}, T Tokens: ${tTokens}`);
+    }
+    
+    // Show success notification
+    alert(`🎉 Account Linked!\n\n${gems} Diamonds have been converted to ${tTokens} T Tokens.\n\nYou can now use T Tokens across all Turntopia apps!`);
+    
+    // Refresh user state
+    // The auth state will automatically update via the Supabase auth listener
+  };
+
   return (
     <View style={styles.container}>
       {/* Gradient Background */}
@@ -156,11 +204,13 @@ export default function IndexScreen() {
       <View style={[styles.content, { paddingTop: Math.max(insets.top, 20) }]}>
         {/* Welcome Toast */}
         {user.isAuthenticated && user.username && (
-          <WelcomeToast
-            username={user.username}
-            visible={showWelcomeToast}
-            onDismiss={() => setShowWelcomeToast(false)}
-          />
+          <Suspense fallback={null}>
+            <WelcomeToast
+              username={user.username}
+              visible={showWelcomeToast}
+              onDismiss={() => setShowWelcomeToast(false)}
+            />
+          </Suspense>
         )}
 
         {/* User Profile Header - Always show username if authenticated */}
@@ -196,20 +246,47 @@ export default function IndexScreen() {
           onPress={handleLogoTap}
           activeOpacity={1}
         >
-          <Image 
-            source={require('../assets/logo-full.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-            accessibilityLabel="Blocktopia"
-            accessibilityRole="header"
-          />
+        <Image 
+          source={require('../assets/logo-full.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+          accessibilityLabel="Blocktopia"
+          accessibilityRole="header"
+        />
         </TouchableOpacity>
         <TouchableOpacity 
           onPress={handleSubtitleTap}
           activeOpacity={1}
         >
-          <Text style={styles.subtitle}>Block Puzzle Game</Text>
+        <Text style={styles.subtitle}>Block Puzzle Game</Text>
         </TouchableOpacity>
+
+        {/* Turntopia Sign-In Banner (for anonymous users) */}
+        {user.isAnonymous && (
+          <TouchableOpacity
+            style={styles.turntopiaSignInBanner}
+            onPress={() => setShowTurntopiaSignIn(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Sign in to earn rewards"
+            accessibilityRole="button"
+          >
+            <LinearGradient
+              colors={[COLORS.accent.gold, COLORS.accent.warning, COLORS.primary.cyan]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.turntopiaSignInGradient}
+            >
+              <Text style={styles.turntopiaSignInEmoji}>🎁</Text>
+              <View style={styles.turntopiaSignInTextContainer}>
+                <Text style={styles.turntopiaSignInTitle}>Sign In to Earn Rewards</Text>
+                <Text style={styles.turntopiaSignInSubtitle}>
+                  Convert your {gems} Diamonds to T Tokens
+                </Text>
+              </View>
+              <Text style={styles.turntopiaSignInArrow}>›</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         {/* Play/Continue Buttons */}
         {isCheckingGame ? (
@@ -344,14 +421,16 @@ export default function IndexScreen() {
       </View>
 
       {/* Auth Modal */}
-      <AuthModal
-        visible={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={() => {
-          console.log('Sign-in successful');
-        }}
-        allowAnonymous={true}
-      />
+      <Suspense fallback={null}>
+        <AuthModal
+          visible={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => {
+            console.log('Sign-in successful');
+          }}
+          allowAnonymous={true}
+        />
+      </Suspense>
 
       {/* Shop Modal - Lazy loaded to prevent RevenueCat crash */}
       {ShopComponent && (
@@ -362,19 +441,40 @@ export default function IndexScreen() {
       )}
 
       {/* Customization Modal */}
-      <CustomizationScreen
-        visible={showCustomization}
-        onClose={() => setShowCustomization(false)}
-      />
+      <Suspense fallback={null}>
+        <CustomizationScreen
+          visible={showCustomization}
+          onClose={() => setShowCustomization(false)}
+        />
+      </Suspense>
 
       {/* Admin Dashboard */}
-      <AdminDashboard
-        visible={showAdmin}
-        onClose={() => setShowAdmin(false)}
-      />
+      <Suspense fallback={null}>
+        <AdminDashboard
+          visible={showAdmin}
+          onClose={() => setShowAdmin(false)}
+        />
+      </Suspense>
+
+      {/* Turntopia Sign-In Modal */}
+      <Suspense fallback={null}>
+        <TurntopiaSignInModal
+          visible={showTurntopiaSignIn}
+          onClose={() => setShowTurntopiaSignIn(false)}
+          onComplete={handleTurntopiaSignInComplete}
+          currentDiamonds={gems}
+          gameStats={{
+            highScore: 0, // TODO: Get from HighScoreService
+            totalGamesPlayed: 0, // TODO: Track in game store
+            totalLinesCleared: 0, // TODO: Track in game store
+          }}
+        />
+      </Suspense>
 
       {/* Home Screen Banner Ad */}
-      <HomeBannerAd />
+      <Suspense fallback={null}>
+        <HomeBannerAd />
+      </Suspense>
     </View>
   );
 }
@@ -577,6 +677,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.5,
     textAlign: 'center',
+  },
+  // Turntopia Sign-In Banner Styles
+  turntopiaSignInBanner: {
+    width: '100%',
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: 'hidden',
+    marginBottom: SPACING.xl,
+    ...SHADOWS.glow,
+  },
+  turntopiaSignInGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.lg,
+    paddingVertical: SPACING.md + 4,
+  },
+  turntopiaSignInEmoji: {
+    fontSize: 32,
+    marginRight: SPACING.md,
+  },
+  turntopiaSignInTextContainer: {
+    flex: 1,
+  },
+  turntopiaSignInTitle: {
+    fontSize: 18,
+    fontWeight: Platform.OS === 'ios' ? '700' : 'bold',
+    color: '#FFF',
+    marginBottom: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  turntopiaSignInSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  turntopiaSignInArrow: {
+    fontSize: 32,
+    color: '#FFF',
+    fontWeight: '300',
+    marginLeft: SPACING.xs,
   },
 });
 

@@ -3,7 +3,7 @@
  * Syncs to Supabase for cross-device persistence
  */
 
-import { getSupabase } from '../backend/SupabaseClient';
+import { getSupabase, supabaseManager } from '../backend/SupabaseClient';
 import { MMKV } from 'react-native-mmkv';
 
 // Lazy-initialized MMKV instance for high scores storage
@@ -62,7 +62,7 @@ export class HighScoreService {
 
       // Try to fetch from Supabase
       const supabase = getSupabase();
-      const { data, error } = await supabase
+      const { data, error } = await supabaseManager
         .from('user_high_scores')
         .select('high_score')
         .eq('user_id', userId)
@@ -191,7 +191,7 @@ export class HighScoreService {
   static async getLeaderboard(limit: number = 100): Promise<LeaderboardEntry[]> {
     try {
       const supabase = getSupabase();
-      const { data, error } = await supabase
+      const { data, error } = await supabaseManager
         .from('user_high_scores')
         .select(`
           user_id,
